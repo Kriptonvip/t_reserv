@@ -6,7 +6,8 @@
 /api
 /js-php-V
 .pnp.js
-./all.code
+./
+all.code
 
 # testing
 /coverage
