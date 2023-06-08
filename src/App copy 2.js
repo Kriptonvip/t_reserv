@@ -24,6 +24,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
+    setSelectedTimeslot([]);
     loadTimeslots();
   }, [selectedDate]);
 
@@ -35,24 +36,30 @@ const App = () => {
       .then((tables) => {
         setTables(tables);
 
-        const selectedDateString = selectedDate.toISOString().split('T')[0];
+        const timeslotPromises = tables.map((table) =>
+          fetch(`${API_BASE_URL}/timeslots/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              table_id: table.id,
+              date: selectedDate.toISOString().split('T')[0],
+            }),
+          })
+            .then((response) => response.json())
+            .then((timeslots) => {
+              return timeslots.map((timeslot) => ({ ...timeslot, tableId: table.id }));
+            })
+            .catch((error) => {
+              console.error(error);
+              return [];
+            })
+        );
 
-        Promise.all(
-          tables.map((table) =>
-            fetch(`${API_BASE_URL}/timeslots/`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                table_id: table.id,
-                date: selectedDateString,
-              }),
-            }).then((response) => response.json())
-          )
-        )
-          .then((timeslotsArray) => {
-            const updatedTimeslots = timeslotsArray.flat();
+        Promise.all(timeslotPromises)
+          .then((timeslotResults) => {
+            const updatedTimeslots = timeslotResults.flat();
             setTimeslots(updatedTimeslots);
           })
           .catch((error) => setError(error.toString()));
@@ -69,7 +76,6 @@ const App = () => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
-    setSelectedTimeslot([]);
   };
 
   const handleSelectTable = (table) => {
@@ -109,12 +115,35 @@ const App = () => {
   const getTableIdBySlotId = (slotId) => {
     const timeslot = timeslots.find((slot) => slot.id === slotId);
     if (timeslot) {
-      const table = tables.find((table) => table.id === timeslot.table_id);
+      const table = tables.find((table) => table.id === timeslot.tableId);
       if (table) {
         return table.id;
       }
     }
     return null;
+  };
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    switch (name) {
+      case 'name':
+        setName(value);
+        break;
+      case 'phone':
+        setPhone(value);
+        break;
+      case 'email':
+        setEmail(value);
+        break;
+      case 'comment':
+        setComment(value);
+        break;
+      case 'payment_method':
+        setPaymentMethod(value);
+        break;
+      default:
+        break;
+    }
   };
 
   const handleSubmit = (event) => {
@@ -167,7 +196,8 @@ const App = () => {
   const isSlotOccupied = (timeslot) =>
     occupiedSlots.some(
       (occupiedSlot) =>
-        occupiedSlot.date === selectedDate.toISOString().split('T')[0] && occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
+        occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
+        occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
     );
 
   return (
@@ -178,13 +208,16 @@ const App = () => {
       <h2>Выберите стол и время бронирования</h2>
       <div className="row">
         {tables.map((table) => (
-          <div key={table.id} className={`col-sm-6 col-md-4 mb-4 ${isTableOccupied(table) ? 'list-group-item-dark' : ''}`}>
+          <div
+            key={table.id}
+            className={`col-sm-6 col-md-4 mb-4 ${isTableOccupied(table) ? 'list-group-item-dark' : ''}`}
+          >
             <div className="card" onClick={() => handleSelectTable(table)}>
               <div className="card-body">
                 <h5 className="card-title">{table.name}</h5>
                 <ul className="list-group">
                   {timeslots
-                    .filter((timeslot) => timeslot.table_id === table.id)
+                    .filter((timeslot) => timeslot.tableId === table.id)
                     .map((timeslot) => (
                       <li
                         key={timeslot.id}
@@ -214,7 +247,7 @@ const App = () => {
             id="name"
             name="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -226,7 +259,7 @@ const App = () => {
             id="phone"
             name="phone"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -238,7 +271,7 @@ const App = () => {
             id="email"
             name="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -249,7 +282,7 @@ const App = () => {
             id="comment"
             name="comment"
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Комментарий"
           />
         </div>
@@ -260,7 +293,7 @@ const App = () => {
             id="payment_method"
             name="payment_method"
             value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
+            onChange={handleInputChange}
             required
           >
             <option value="">Способ оплаты</option>
