@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 /api
+/js-php-V
 .pnp.js
 
 # testing
