@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { tables, timeslots } from './data';
+import { tables, timeslots } from '../src/data';
 
 const API_BASE_URL = '/api';
 
@@ -72,17 +72,6 @@ const App = () => {
     } else {
       setSelectedTimeslots((prevTimeslots) => [...prevTimeslots, timeslot]);
     }
-  };
-
-  const getTableIdBySlotId = (slotId) => {
-    const timeslot = timeslots.find((slot) => slot.id === slotId);
-    if (timeslot) {
-      const table = tables.find((table) => table.id === timeslot.table_id);
-      if (table) {
-        return table.id;
-      }
-    }
-    return null;
   };
 
   const handleSubmit = (event) => {
@@ -176,7 +165,11 @@ const App = () => {
         occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
         occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
     );
-
+    const isSlotConfirmed = (timeslot) => reservations.some(
+      (reservation) => {
+       const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
+        return hasInReserv && reservation.confirmed === "1";
+      })
   if (error) {
     return <div className="alert alert-danger">{error}</div>;
   }
@@ -231,7 +224,6 @@ const App = () => {
     });
   }
   
- console.log(groupedReservations, 'groupedReservations')
 
   return (
     <div className="container">
@@ -257,7 +249,7 @@ const App = () => {
                           onClick={() => handleSelectTimeslot(timeslot)}
                         >
                           {timeslot.start_time} - {timeslot.end_time}{' '}
-                          {isSlotOccupied(timeslot) ? 'Занято' : 'Свободно'}
+                          {isSlotOccupied(timeslot) ? `бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}` : 'Свободно'}
                         </li>
                       ))}
                   </ul>
