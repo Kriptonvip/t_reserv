@@ -48,7 +48,7 @@ const App = () => {
   const handleDateChange = (date) => {
     const originalDate = new Date(date);
     const GMT3Date = new Date(originalDate.getTime() + 3 * 60 * 60 * 1000);
-    setSelectedDate(GMT3Date);
+    setSelectedDate(GMT3Date);   
     setSelectedTimeslots([]);
   };
 
@@ -165,13 +165,11 @@ const App = () => {
         occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
         occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
     );
-  const isSlotConfirmed = (timeslot) =>
-    reservations.some(
-      (reservation) =>
-        reservation.date === selectedDate.toISOString().split('T')[0] &&
-        reservation.timeslots.some((slot) => slot.id === timeslot.id && slot.confirmed === '1')
-    );
-
+    const isSlotConfirmed = (timeslot) => reservations.some(
+      (reservation) => {
+       const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
+        return hasInReserv && reservation.confirmed === "1";
+      })
   if (error) {
     return <div className="alert alert-danger">{error}</div>;
   }
@@ -198,7 +196,7 @@ const App = () => {
         break;
     }
   };
-
+  
   const groupedReservations = reservations.reduce((acc, reservation) => {
     const { date, timeslots, confirmed, id } = reservation;
     if (!acc[date]) {
@@ -210,12 +208,12 @@ const App = () => {
       table_id: timeslot.table_id,
       start_time: timeslot.start_time,
       end_time: timeslot.end_time,
-      confirmed,
+      confirmed: confirmed
     }));
     acc[date] = acc[date].concat(formattedTimeslots);
     return acc;
   }, {});
-
+  
   // Сортировка столов по возрастанию номера стола и времени начала
   for (const date in groupedReservations) {
     groupedReservations[date].sort((a, b) => {
@@ -225,16 +223,17 @@ const App = () => {
       return a.start_time.localeCompare(b.start_time);
     });
   }
+  
 
   return (
     <div className="container">
-      <Calendar onChange={handleDateChange} value={selectedDate} />
+      <Calendar onChange={handleDateChange} value={selectedDate} className="mx-auto m-3"/>
 
-      <h2>Выберите стол и время бронирования</h2>
+      <h2  className="text-center m-2">Выберите стол и время бронирования</h2>
       {!loading ? (
         <div className="row">
           {tables.map((table) => (
-            <div key={table.id} className={`col-sm-6 col-md-4 mb-4`}>
+            <div key={table.id} className={`col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2mb-4`}>
               <div className="card" onClick={() => handleSelectTable(table)}>
                 <div className="card-body">
                   <h5 className="card-title">{table.name}</h5>
@@ -244,15 +243,14 @@ const App = () => {
                       .map((timeslot) => (
                         <li
                           key={timeslot.id}
-                          className={`list-group-item ${
+                          className={`list-group-item text-center ${
                             isTimeslotSelected(timeslot) ? 'active' : ''
                           } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
                           onClick={() => handleSelectTimeslot(timeslot)}
                         >
-                          {timeslot.start_time} - {timeslot.end_time}{' '}
-                          {isSlotOccupied(timeslot)
-                            ? `бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}`
-                            : 'Свободно'}
+                          {timeslot.start_time.substring(0, timeslot.start_time.lastIndexOf(':'))} - {timeslot.end_time.substring(0, timeslot.end_time.lastIndexOf(':'))}
+                          {isSlotOccupied(timeslot) ? ` бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}` : ' Свободно'}
+                          
                         </li>
                       ))}
                   </ul>
@@ -266,6 +264,110 @@ const App = () => {
       )}
 
 <h2>Форма бронирования</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="name">ФИО</label>
+          <input
+            type="text"
+            className="form-control"
+            id="name"
+            name="name"
+            value={name}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="phone">Мобильный телефон</label>
+          <input
+            type="tel"
+            className="form-control"
+            id="phone"
+            name="phone"
+            value={phone}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="email">E-mail</label>
+          <input
+            type="email"
+            className="form-control"
+            id="email"
+            name="email"
+            value={email}
+            onChange={handleInputChange}
+            required
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="comment">Комментарий</label>
+          <textarea
+            className="form-control"
+            id="comment"
+            name="comment"
+            value={comment}
+            onChange={handleInputChange}
+            placeholder="Комментарий"
+          />
+        </div>
+        <div className="form-group">
+          <label htmlFor="payment_method">Способ оплаты</label>
+          <select
+            className="form-control"
+            id="payment_method"
+            name="payment_method"
+            value={paymentMethod}
+            onChange={handleInputChange}
+            required
+          >
+            <option value="">Способ оплаты</option>
+            <option value="card">Банковской картой в зале</option>
+            <option value="cash">Наличными в зале</option>
+            <option value="subscription">У меня абонемент</option>
+          </select>
+        </div>
+        <button type="submit" className="btn btn-primary">
+          Оформить бронь
+        </button>
+      </form>
+
+      <h2>Управление бронированиями</h2>
+      <div className="row">
+        {Object.keys(groupedReservations).sort().map((date) => (
+          <div className = "col-sm-6 col-md-4" key={date}>
+            <p>Бронирование на дату: {date}</p>
+            <ul className="list-group">
+              {groupedReservations[date].map((reservation) => {
+                const { id, start_time, end_time, table_id } = reservation;
+                const table = table_id;
+                const confirmed = reservation.confirmed;
+                return (
+                  <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
+                    Стол №{table} {start_time} - {end_time}
+                    <button className="btn btn-danger m-2"  onClick={() => deleteReservation(reservation.id)}>Удалить</button>
+                    {confirmed === "1" ? null : (
+                      <button className="btn btn-success" onClick={() => confirmReservation(reservation.id)}>Подтвердить</button>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+
+    </div>
+  );
+};
+
+export default App;
+
+
+
+{/* <h2>Форма бронирования</h2>
 <form onSubmit={handleSubmit} className="sticky-bottom p-3 bg-light">
   <div className="form-row">
     <div className="form-column">
@@ -335,45 +437,8 @@ const App = () => {
     </div>
     <div className="form-column">
       <button type="submit" className="form-button">
-        Отправить
+        Забронировать
       </button>
     </div>
   </div>
-</form>
-
-
-      <h2>Управление бронированиями</h2>
-      <div className="row">
-        {Object.keys(groupedReservations)
-          .sort()
-          .map((date) => (
-            <div className="col-sm-6 col-md-4" key={date}>
-              <p>Бронирование на дату: {date}</p>
-              <ul className="list-group">
-                {groupedReservations[date].map((reservation) => {
-                  const { id, start_time, end_time, table_id } = reservation;
-                  const table = table_id;
-                  const confirmed = reservation.confirmed;
-                  return (
-                    <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
-                      Стол №{table} {start_time} - {end_time}
-                      <button className="btn btn-danger m-2" onClick={() => deleteReservation(reservation.id)}>
-                        Удалить
-                      </button>
-                      {confirmed === '1' ? null : (
-                        <button className="btn btn-success" onClick={() => confirmReservation(reservation.id)}>
-                          Подтвердить
-                        </button>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-};
-
-export default App;
+</form> */}
