@@ -66,3 +66,5 @@ VALUES
     FOREIGN KEY(timeslot_id) REFERENCES timeslots(id),
     FOREIGN KEY(table_id) REFERENCES tables(id)
 );
+
+ 
