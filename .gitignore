@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 /api
+/backup
 /js-php-V
 .pnp.js
 ./

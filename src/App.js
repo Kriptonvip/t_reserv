@@ -5,6 +5,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { tables, timeslots } from './data';
 
 const API_BASE_URL = '/api';
+
 const App = () => {
   const [occupiedSlots, setOccupiedSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -15,8 +16,9 @@ const App = () => {
   const [email, setEmail] = useState('test@mail.ru');
   const [comment, setComment] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
 
   const loadOccupiedSlots = async () => {
     try {
@@ -28,16 +30,25 @@ const App = () => {
       setError(error.toString());
     }
   };
+  const loadReservations = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/reservations/all_reservations.php`);
+      const reservationsData = await response.json();
+      setReservations(reservationsData);
+    } catch (error) {
+      setError(error.toString());
+    }
+  };
 
   useEffect(() => {
     loadOccupiedSlots();
-
-  }, [loading]);
+    loadReservations();
+  }, []);
 
   const handleDateChange = (date) => {
     const originalDate = new Date(date);
     const GMT3Date = new Date(originalDate.getTime() + 3 * 60 * 60 * 1000);
-    setSelectedDate(GMT3Date);
+    setSelectedDate(GMT3Date);   
     setSelectedTimeslots([]);
   };
 
@@ -93,7 +104,7 @@ const App = () => {
         table_id: selectedTable.id,
         date: selectedDate.toISOString().split('T')[0],
       };
-      console.log(reservation)
+
       return fetch(`${API_BASE_URL}/reservations/`, {
         method: 'POST',
         headers: {
@@ -121,6 +132,37 @@ const App = () => {
       });
   };
 
+  const deleteReservation = (reservationId) => {
+    console.log(reservations);
+    fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
+      method: 'DELETE',
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          loadOccupiedSlots();
+          alert('Бронирование успешно удалено!');
+        } else {
+          alert('Произошла ошибка при удалении бронирования');
+        }
+      });
+  };
+
+  const confirmReservation = (reservationId) => {
+    fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
+      method: 'PUT',
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === 'success') {
+          loadOccupiedSlots();
+          alert('Бронирование успешно подтверждено!');
+        } else {
+          alert('Произошла ошибка при подтверждении бронирования');
+        }
+      });
+  };
+
   const isTimeslotSelected = (timeslot) =>
     selectedTimeslots.some((selectedSlot) => selectedSlot.id === timeslot.id);
 
@@ -135,46 +177,68 @@ const App = () => {
     return <div className="alert alert-danger">{error}</div>;
   }
 
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    switch (name) {
+      case 'name':
+        setName(value);
+        break;
+      case 'phone':
+        setPhone(value);
+        break;
+      case 'email':
+        setEmail(value);
+        break;
+      case 'comment':
+        setComment(value);
+        break;
+      case 'payment_method':
+        setPaymentMethod(value);
+        break;
+      default:
+        break;
+    }
+  };
+  
+
   return (
     <div className="container">
       <Calendar onChange={handleDateChange} value={selectedDate} />
 
       <h2>Выберите стол и время бронирования</h2>
       {!loading ? (
-      <div className="row">
-        {tables.map((table) => (
-          <div
-            key={table.id}
-            className={`col-sm-6 col-md-4 mb-4`}
-          >
-            <div className="card" onClick={() => handleSelectTable(table)}>
-              <div className="card-body">
-                <h5 className="card-title">{table.name}</h5>
-                <ul className="list-group">
-                  {timeslots
-                    .filter((timeslot) => timeslot.table_id === table.id)
-                    .map((timeslot) => (
-                      <li
-                        key={timeslot.id}
-                        className={`list-group-item ${
-                          isTimeslotSelected(timeslot) ? 'active' : ''
-                        } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
-                        onClick={() => handleSelectTimeslot(timeslot)}
-                      >
-                        {timeslot.start_time} - {timeslot.end_time}{' '}
-                        {isSlotOccupied(timeslot) ? 'Забронированно' : 'Свободно'}
-                      </li>
-                    ))}
-                </ul>
+        <div className="row">
+          {tables.map((table) => (
+            <div key={table.id} className={`col-sm-6 col-md-4 mb-4`}>
+              <div className="card" onClick={() => handleSelectTable(table)}>
+                <div className="card-body">
+                  <h5 className="card-title">{table.name}</h5>
+                  <ul className="list-group">
+                    {timeslots
+                      .filter((timeslot) => timeslot.table_id === table.id)
+                      .map((timeslot) => (
+                        <li
+                          key={timeslot.id}
+                          className={`list-group-item ${
+                            isTimeslotSelected(timeslot) ? 'active' : ''
+                          } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
+                          onClick={() => handleSelectTimeslot(timeslot)}
+                        >
+                          {timeslot.start_time} - {timeslot.end_time}{' '}
+                          {isSlotOccupied(timeslot) ? 'Занято' : 'Свободно'}
+                        </li>
+                      ))}
+                  </ul>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
       ) : (
         <div className="text-center">Загрузка...</div>
-      )} 
-      <h2>Форма бронирования</h2>
+      )}
+
+<h2>Форма бронирования</h2>
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label htmlFor="name">ФИО</label>
@@ -184,7 +248,7 @@ const App = () => {
             id="name"
             name="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -196,7 +260,7 @@ const App = () => {
             id="phone"
             name="phone"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -208,7 +272,7 @@ const App = () => {
             id="email"
             name="email"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={handleInputChange}
             required
           />
         </div>
@@ -219,7 +283,7 @@ const App = () => {
             id="comment"
             name="comment"
             value={comment}
-            onChange={(e) => setComment(e.target.value)}
+            onChange={handleInputChange}
             placeholder="Комментарий"
           />
         </div>
@@ -230,7 +294,7 @@ const App = () => {
             id="payment_method"
             name="payment_method"
             value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
+            onChange={handleInputChange}
             required
           >
             <option value="">Способ оплаты</option>
@@ -243,6 +307,34 @@ const App = () => {
           Оформить бронь
         </button>
       </form>
+
+      <h2>Управление бронированиями</h2>
+      <div>
+        {reservations.map((reservation) => (
+          
+          <div key={reservation.id}>
+            {console.log(reservation)}
+            <p>Бронирование на дату: {reservation.date}</p>
+            <ul>
+              {reservation.timeslots.map((timeslot) => {
+                const { id, start_time, end_time, confirmed, table_id } = timeslot;
+                const table = table_id;
+                  return (
+                    <li key={id}>
+                      Стол №{table} {start_time} - {end_time}
+                      <button onClick={() => deleteReservation(reservation.id, id)}>Удалить</button>
+                      {!confirmed && (
+                        <button onClick={() => confirmReservation(reservation.id, id)}>Подтвердить</button>
+                      )}
+                    </li>
+                  );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+
+
     </div>
   );
 };
