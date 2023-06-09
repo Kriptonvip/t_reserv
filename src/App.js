@@ -126,6 +126,7 @@ const App = () => {
           setPaymentMethod('');
           loadOccupiedSlots();
           alert('Все бронирования успешно созданы!');
+          loadReservations();
         } else {
           alert('Произошла ошибка при создании бронирования');
         }
@@ -133,7 +134,7 @@ const App = () => {
   };
 
   const deleteReservation = (reservationId) => {
-    console.log(reservations);
+    console.log(reservationId);
     fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
       method: 'DELETE',
     })
@@ -141,7 +142,8 @@ const App = () => {
       .then((data) => {
         if (data.status === 'success') {
           loadOccupiedSlots();
-          alert('Бронирование успешно удалено!');
+          loadReservations();
+          // alert('Бронирование успешно удалено!');
         } else {
           alert('Произошла ошибка при удалении бронирования');
         }
@@ -149,6 +151,7 @@ const App = () => {
   };
 
   const confirmReservation = (reservationId) => {
+    console.log(reservationId);
     fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
       method: 'PUT',
     })
@@ -156,7 +159,8 @@ const App = () => {
       .then((data) => {
         if (data.status === 'success') {
           loadOccupiedSlots();
-          alert('Бронирование успешно подтверждено!');
+          loadReservations();
+          // alert('Бронирование успешно подтверждено!');
         } else {
           alert('Произошла ошибка при подтверждении бронирования');
         }
@@ -200,6 +204,34 @@ const App = () => {
     }
   };
   
+  const groupedReservations = reservations.reduce((acc, reservation) => {
+    const { date, timeslots, confirmed, id } = reservation;
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+    // Добавление информации о столе, времени начала и окончания в каждое бронирование
+    const formattedTimeslots = timeslots.map((timeslot) => ({
+      id,
+      table_id: timeslot.table_id,
+      start_time: timeslot.start_time,
+      end_time: timeslot.end_time,
+      confirmed: confirmed
+    }));
+    acc[date] = acc[date].concat(formattedTimeslots);
+    return acc;
+  }, {});
+  
+  // Сортировка столов по возрастанию номера стола и времени начала
+  for (const date in groupedReservations) {
+    groupedReservations[date].sort((a, b) => {
+      if (a.table_id !== b.table_id) {
+        return a.table_id - b.table_id;
+      }
+      return a.start_time.localeCompare(b.start_time);
+    });
+  }
+  
+ console.log(groupedReservations, 'groupedReservations')
 
   return (
     <div className="container">
@@ -309,25 +341,24 @@ const App = () => {
       </form>
 
       <h2>Управление бронированиями</h2>
-      <div>
-        {reservations.map((reservation) => (
-          
-          <div key={reservation.id}>
-            {console.log(reservation)}
-            <p>Бронирование на дату: {reservation.date}</p>
-            <ul>
-              {reservation.timeslots.map((timeslot) => {
-                const { id, start_time, end_time, confirmed, table_id } = timeslot;
+      <div className="row">
+        {Object.keys(groupedReservations).sort().map((date) => (
+          <div className = "col-sm-6 col-md-4" key={date}>
+            <p>Бронирование на дату: {date}</p>
+            <ul className="list-group">
+              {groupedReservations[date].map((reservation) => {
+                const { id, start_time, end_time, table_id } = reservation;
                 const table = table_id;
-                  return (
-                    <li key={id}>
-                      Стол №{table} {start_time} - {end_time}
-                      <button onClick={() => deleteReservation(reservation.id, id)}>Удалить</button>
-                      {!confirmed && (
-                        <button onClick={() => confirmReservation(reservation.id, id)}>Подтвердить</button>
-                      )}
-                    </li>
-                  );
+                const confirmed = reservation.confirmed;
+                return (
+                  <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
+                    Стол №{table} {start_time} - {end_time}
+                    <button className="btn btn-danger m-2"  onClick={() => deleteReservation(reservation.id)}>Удалить</button>
+                    {confirmed === "1" ? null : (
+                      <button className="btn btn-success" onClick={() => confirmReservation(reservation.id)}>Подтвердить</button>
+                    )}
+                  </li>
+                );
               })}
             </ul>
           </div>
