@@ -1,9 +1,9 @@
 export const tables = [
-    { id: 1, name: 'Table 1' },
-    { id: 2, name: 'Table 2' },
-    { id: 3, name: 'Table 3' },
-    { id: 4, name: 'Table 4' },
-    { id: 5, name: 'Table 5' },
+    { id: 1, name: 'Стол 1' },
+    { id: 2, name: 'Стол 2' },
+    { id: 3, name: 'Стол 3' },
+    { id: 4, name: 'Стол 4' },
+    { id: 5, name: 'Стол 5' },
   ];
   
   export const timeslots = [

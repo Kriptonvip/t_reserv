@@ -11,3 +11,38 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+ .form-row {
+    margin-bottom: 10px;
+  }
+
+  .form-column {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 5px;
+    margin-bottom: 5px;
+  }
+
+  .form-button {
+    width: 100%;
+    padding: 10px;
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+  }
+
+  @media (min-width: 768px) {
+    .form-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .form-column {
+      flex-basis: calc(33.33% - 10px);
+    }
+  }
