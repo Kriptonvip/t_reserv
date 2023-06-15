@@ -3,7 +3,8 @@ import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { tables, timeslots } from './data';
-import { Form, Card, Button, Collapse } from 'react-bootstrap';
+import { Form, Button, Collapse } from 'react-bootstrap';
+import Modal from 'react-bootstrap/Modal';
 
 const API_BASE_URL = '/api';
 
@@ -25,6 +26,14 @@ const App = () => {
   const [thuT, setThuT] = useState(false);
   const [satT, setSatT] = useState(false);
   const [open, setOpen] = useState({});
+  const [show, setShow] = useState(false);
+  const [isSticky, setSticky] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const checkScreenSize = () => {
+    setIsMobile(window.innerWidth < 768);
+  };
+  const handleClose = () => setShow(false);
+  const handleShow = () => setShow(true);
   
   const toggleOpen = (id) => {
     setOpen((prevOpen) => ({
@@ -32,7 +41,23 @@ const App = () => {
       [id]: !prevOpen[id],
     }));
   };
+  const checkScrollTop = () => {    
+    if (!isSticky && window.pageYOffset > 300){
+      setSticky(true);
+    } else if (isSticky && window.pageYOffset <= 300){
+      setSticky(false);
+    }
+  };
 
+  useEffect(() => {
+    window.addEventListener('scroll', checkScrollTop);
+    window.addEventListener('resize', checkScreenSize);
+    checkScreenSize();
+    return () => {
+      window.removeEventListener('scroll', checkScrollTop);
+      window.removeEventListener('resize', checkScreenSize);
+    }
+  }, [isSticky, isMobile]);
 
   const loadOccupiedSlots = async () => {
     try {
@@ -90,7 +115,7 @@ const App = () => {
 
   const handleSubmit = (event) => {
     event.preventDefault();
-
+    handleClose();
     if (!selectedTimeslots.length || !selectedDate || !selectedTable) {
       alert('Пожалуйста, выберите стол, дату и время бронирования');
       return;
@@ -342,82 +367,94 @@ const App = () => {
       ) : (
         <div className="text-center">Загрузка...</div>
       )}
+     <Button 
+        variant="success" 
+        className={`m-3  ${isMobile ? (isSticky ? 'position-sticky' : 'fixed-bottom') : 'd-block w-50 mx-auto'}`} 
+        style={isMobile ? {bottom: '20px'} : {}} 
+        onClick={handleShow}
+      >
+        Забронировать
+      </Button>
 
-<h2>Форма бронирования</h2>
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="name">ФИО</label>
-          <input
-            type="text"
-            className="form-control"
-            id="name"
-            name="name"
-            value={name}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="phone">Мобильный телефон</label>
-          <input
-            type="tel"
-            className="form-control"
-            id="phone"
-            name="phone"
-            value={phone}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="email">E-mail</label>
-          <input
-            type="email"
-            className="form-control"
-            id="email"
-            name="email"
-            value={email}
-            onChange={handleInputChange}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="comment">Комментарий</label>
-          <textarea
-            className="form-control"
-            id="comment"
-            name="comment"
-            value={comment}
-            onChange={handleInputChange}
-            placeholder="Комментарий"
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="payment_method">Способ оплаты</label>
-          <select
-            className="form-control"
-            id="payment_method"
-            name="payment_method"
-            value={paymentMethod}
-            onChange={handleInputChange}
-            required
-          >
-            <option value="">Способ оплаты</option>
-            <option value="card">Банковской картой в зале</option>
-            <option value="cash">Наличными в зале</option>
-            <option value="subscription">У меня абонемент</option>
-          </select>
-        </div>
-        <button type="submit" className="btn btn-primary">
-          Оформить бронь
-        </button>
-      </form>
 
+
+      <Modal show={show} onHide={handleClose} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Форма бронирования</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+        <form onSubmit={handleSubmit}>
+          <div className="form-group mb-2">
+            <label htmlFor="name">ФИО</label>
+            <input
+              type="text"
+              className="form-control"
+              id="name"
+              name="name"
+              value={name}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group mb-2">
+            <label htmlFor="phone">Мобильный телефон</label>
+            <input
+              type="tel"
+              className="form-control"
+              id="phone"
+              name="phone"
+              value={phone}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group mb-2">
+            <label htmlFor="email">E-mail</label>
+            <input
+              type="email"
+              className="form-control"
+              id="email"
+              name="email"
+              value={email}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
+          <div className="form-group mb-2">
+            <label htmlFor="comment">Комментарий</label>
+            <textarea
+              className="form-control"
+              id="comment"
+              name="comment"
+              value={comment}
+              onChange={handleInputChange}
+              placeholder="Комментарий"
+            />
+          </div>
+          <div className="form-group mb-2">
+            <label htmlFor="payment_method">Способ оплаты</label>
+            <select
+              className="form-control"
+              id="payment_method"
+              name="payment_method"
+              value={paymentMethod}
+              onChange={handleInputChange}
+              required
+            >
+              <option value="">Способ оплаты</option>
+              <option value="card">Банковской картой в зале</option>
+              <option value="cash">Наличными в зале</option>
+              <option value="subscription">У меня абонемент</option>
+            </select>
+          </div>
+          <button type="submit" className="btn btn-primary mt-2">
+            Оформить бронь
+          </button>
+          </form>
+          </Modal.Body>
+       </Modal>
       <h2>Управление бронированиями</h2>
-      <div className="row">
-        {Object.keys(groupedReservations).sort().map((date) => (
-          <div className = "col-sm-6 col-md-4" key={date}>
-        <Form.Check 
+      <Form.Check 
             type="switch"
             id="monladder-switch"
             label={monladder ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
@@ -448,6 +485,9 @@ const App = () => {
             checked={satT}
             onChange={() => setSatT(!satT)}
         />
+      <div className="row">
+        {Object.keys(groupedReservations).sort().map((date) => (
+          <div className = "col-sm-6 col-md-6" key={date}>
             <p>Бронирование на дату: {date}</p>
             <ul className="list-group">
               {groupedReservations[date].map((reservation) => {
