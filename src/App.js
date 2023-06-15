@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
 import 'react-calendar/dist/Calendar.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { tables, timeslots } from '../src/data';
+import { tables, timeslots } from './data';
+import { Form, Card, Button, Collapse } from 'react-bootstrap';
 
 const API_BASE_URL = '/api';
 
@@ -19,6 +20,19 @@ const App = () => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [monladder, setMonladder] = useState(false);
+  const [wedladder, setWedladder] = useState(false);
+  const [thuT, setThuT] = useState(false);
+  const [satT, setSatT] = useState(false);
+  const [open, setOpen] = useState({});
+  
+  const toggleOpen = (id) => {
+    setOpen((prevOpen) => ({
+      ...prevOpen,
+      [id]: !prevOpen[id],
+    }));
+  };
+
 
   const loadOccupiedSlots = async () => {
     try {
@@ -223,7 +237,7 @@ const App = () => {
       return a.start_time.localeCompare(b.start_time);
     });
   }
-  
+  console.log(selectedDate);
 
   return (
     <div className="container">
@@ -233,13 +247,28 @@ const App = () => {
       {!loading ? (
         <div className="row">
           {tables.map((table) => (
-            <div key={table.id} className={`col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2mb-4`}>
-              <div className="card" onClick={() => handleSelectTable(table)}>
+            <div key={table.id} className={`col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2mb-4 mt-2`}>
+              {/* <div className="card" onClick={() => handleSelectTable(table)}>
                 <div className="card-body">
                   <h5 className="card-title">{table.name}</h5>
                   <ul className="list-group">
                     {timeslots
                       .filter((timeslot) => timeslot.table_id === table.id)
+                      .filter((timeslot) => {
+                        const dayOfWeek = selectedDate.getDay()
+                        let originalDate = new Date(selectedDate);
+                        let comparisonDate = new Date();
+                        const [hours, minutes] = timeslot.start_time.split(':');
+                        let newDate = new Date(originalDate);
+                        newDate.setHours(hours, minutes);
+                        const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
+                        const monL = dayOfWeek === 1 && monladder && (hours >= 19);
+                        const wedL = dayOfWeek === 3 && wedladder && (hours >= 19);
+                        const thu = dayOfWeek === 4 && thuT && (hours >= 19);
+                        const sat = dayOfWeek === 6 && satT && (hours >= 10 && hours <= 13);
+                        console.log(childrenClasses);
+                       return newDate > comparisonDate && childrenClasses && !monL && !wedL && !thu && !sat;
+                      })
                       .map((timeslot) => (
                         <li
                           key={timeslot.id}
@@ -255,6 +284,57 @@ const App = () => {
                       ))}
                   </ul>
                 </div>
+              </div> */}
+              <div className="card" onClick={() => handleSelectTable(table)}>
+                <div className="card-body">
+                    <h5 className="card-title d-flex justify-content-between m-0 align-items-center ">
+                        <p className="m-0">{table.name} </p>
+                        <Button
+                            onClick={() => toggleOpen(table.id)}
+                            aria-controls="collapse-text"
+                            aria-expanded={open[table.id]}
+                            className="float-right"  // этот класс размещает кнопку справа
+                        >
+                            {open[table.id] ? 'скрыть −' : 'раскрыть +'}
+                        </Button>
+                    </h5>
+
+                    <Collapse in={open[table.id]}>
+                       <div id="collapse-text">
+                              <ul className="list-group mt-2">
+                                  {timeslots
+                                      .filter((timeslot) => timeslot.table_id === table.id)
+                                      .filter((timeslot) => {
+                                          const dayOfWeek = selectedDate.getDay()
+                                          let originalDate = new Date(selectedDate);
+                                          let comparisonDate = new Date();
+                                          const [hours, minutes] = timeslot.start_time.split(':');
+                                          let newDate = new Date(originalDate);
+                                          newDate.setHours(hours, minutes);
+                                          const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
+                                          const monL = dayOfWeek === 1 && monladder && (hours >= 19);
+                                          const wedL = dayOfWeek === 3 && wedladder && (hours >= 19);
+                                          const thu = dayOfWeek === 4 && thuT && (hours >= 19);
+                                          const sat = dayOfWeek === 6 && satT && (hours >= 10 && hours <= 13);
+                                          console.log(childrenClasses);
+                                          return newDate > comparisonDate && childrenClasses && !monL && !wedL && !thu && !sat;
+                                      })
+                                      .map((timeslot) => (
+                                          <li
+                                          key={timeslot.id}
+                                          className={`list-group-item text-center ${
+                                              isTimeslotSelected(timeslot) ? 'active' : ''
+                                          } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
+                                          onClick={() => handleSelectTimeslot(timeslot)}
+                                          >
+                                          {timeslot.start_time.substring(0, timeslot.start_time.lastIndexOf(':'))} - {timeslot.end_time.substring(0, timeslot.end_time.lastIndexOf(':'))}
+                                          {isSlotOccupied(timeslot) ? ` бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}` : ' Свободно'}
+                                          </li>
+                                      ))}
+                              </ul>
+                          </div>
+                      </Collapse>
+                  </div>
               </div>
             </div>
           ))}
@@ -337,6 +417,37 @@ const App = () => {
       <div className="row">
         {Object.keys(groupedReservations).sort().map((date) => (
           <div className = "col-sm-6 col-md-4" key={date}>
+        <Form.Check 
+            type="switch"
+            id="monladder-switch"
+            label={monladder ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
+            checked={monladder}
+            onChange={() => setMonladder(!monladder)}
+        />
+
+        <Form.Check 
+            type="switch"
+            id="wedladder-switch"
+            label={wedladder ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
+            checked={wedladder}
+            onChange={() => setWedladder(!wedladder)}
+        />
+
+        <Form.Check 
+            type="switch"
+            id="thuT-switch"
+            label={thuT ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={thuT}
+            onChange={() => setThuT(!thuT)}
+        />
+
+        <Form.Check 
+            type="switch"
+            id="satT-switch"
+            label={satT ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
+            checked={satT}
+            onChange={() => setSatT(!satT)}
+        />
             <p>Бронирование на дату: {date}</p>
             <ul className="list-group">
               {groupedReservations[date].map((reservation) => {
@@ -364,81 +475,3 @@ const App = () => {
 };
 
 export default App;
-
-
-
-{/* <h2>Форма бронирования</h2>
-<form onSubmit={handleSubmit} className="sticky-bottom p-3 bg-light">
-  <div className="form-row">
-    <div className="form-column">
-      <label htmlFor="name">ФИО</label>
-      <input
-        type="text"
-        className="form-input"
-        id="name"
-        name="name"
-        value={name}
-        onChange={handleInputChange}
-        required
-      />
-    </div>
-    <div className="form-column">
-      <label htmlFor="phone">Мобильный телефон</label>
-      <input
-        type="tel"
-        className="form-input"
-        id="phone"
-        name="phone"
-        value={phone}
-        onChange={handleInputChange}
-        required
-      />
-    </div>
-    <div className="form-column">
-      <label htmlFor="email">E-mail</label>
-      <input
-        type="email"
-        className="form-input"
-        id="email"
-        name="email"
-        value={email}
-        onChange={handleInputChange}
-        required
-      />
-    </div>
-  </div>
-  <div className="form-row">
-    <div className="form-column">
-      <label htmlFor="comment">Комментарий</label>
-      <textarea
-        className="form-input"
-        id="comment"
-        name="comment"
-        value={comment}
-        onChange={handleInputChange}
-        placeholder="Комментарий"
-      />
-    </div>
-    <div className="form-column">
-      <label htmlFor="payment_method">Способ оплаты</label>
-      <select
-        className="form-input"
-        id="payment_method"
-        name="payment_method"
-        value={paymentMethod}
-        onChange={handleInputChange}
-        required
-      >
-        <option value="">Способ оплаты</option>
-        <option value="card">Банковской картой в зале</option>
-        <option value="cash">Наличными в зале</option>
-        <option value="subscription">У меня абонемент</option>
-      </select>
-    </div>
-    <div className="form-column">
-      <button type="submit" className="form-button">
-        Забронировать
-      </button>
-    </div>
-  </div>
-</form> */}

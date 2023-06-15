@@ -4,7 +4,7 @@ module.exports = function(app) {
   app.use(
     '/api',
     createProxyMiddleware({
-      target: 'http://tt-house.host1654944.hostland.pro',
+      target: 'https://ping-pong-house.ru',
       changeOrigin: true,
     })
   );
