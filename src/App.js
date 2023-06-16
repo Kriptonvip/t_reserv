@@ -21,10 +21,11 @@ const App = () => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [monladder, setMonladder] = useState(false);
-  const [wedladder, setWedladder] = useState(false);
-  const [thuT, setThuT] = useState(false);
-  const [satT, setSatT] = useState(false);
+  const [monday, setMonday] = useState(false);
+  const [wednesday, setWednesday] = useState(false);
+  const [thusday, setThusday] = useState(false);
+  const [saturday, setSaturday] = useState(false);
+  const [friday, setFriday] = useState(false);
   const [open, setOpen] = useState({});
   const [show, setShow] = useState(false);
   const [isSticky, setSticky] = useState(false);
@@ -41,23 +42,23 @@ const App = () => {
       [id]: !prevOpen[id],
     }));
   };
-  const checkScrollTop = () => {    
-    if (!isSticky && window.pageYOffset > 300){
-      setSticky(true);
-    } else if (isSticky && window.pageYOffset <= 300){
-      setSticky(false);
-    }
-  };
+  // const checkScrollTop = () => {    
+  //   if (!isSticky && window.pageYOffset > 300){
+  //     setSticky(true);
+  //   } else if (isSticky && window.pageYOffset <= 300){
+  //     setSticky(false);
+  //   }
+  // };
 
-  useEffect(() => {
-    window.addEventListener('scroll', checkScrollTop);
-    window.addEventListener('resize', checkScreenSize);
-    checkScreenSize();
-    return () => {
-      window.removeEventListener('scroll', checkScrollTop);
-      window.removeEventListener('resize', checkScreenSize);
-    }
-  }, [isSticky, isMobile]);
+  // useEffect(() => {
+  //   window.addEventListener('scroll', checkScrollTop);
+  //   window.addEventListener('resize', checkScreenSize);
+  //   checkScreenSize();
+  //   return () => {
+  //     window.removeEventListener('scroll', checkScrollTop);
+  //     window.removeEventListener('resize', checkScreenSize);
+  //   }
+  // }, [isSticky, isMobile]);
 
   const loadOccupiedSlots = async () => {
     try {
@@ -273,43 +274,6 @@ const App = () => {
         <div className="row">
           {tables.map((table) => (
             <div key={table.id} className={`col-xs-12 col-sm-6 col-md-4 col-lg-3 col-xl-2mb-4 mt-2`}>
-              {/* <div className="card" onClick={() => handleSelectTable(table)}>
-                <div className="card-body">
-                  <h5 className="card-title">{table.name}</h5>
-                  <ul className="list-group">
-                    {timeslots
-                      .filter((timeslot) => timeslot.table_id === table.id)
-                      .filter((timeslot) => {
-                        const dayOfWeek = selectedDate.getDay()
-                        let originalDate = new Date(selectedDate);
-                        let comparisonDate = new Date();
-                        const [hours, minutes] = timeslot.start_time.split(':');
-                        let newDate = new Date(originalDate);
-                        newDate.setHours(hours, minutes);
-                        const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
-                        const monL = dayOfWeek === 1 && monladder && (hours >= 19);
-                        const wedL = dayOfWeek === 3 && wedladder && (hours >= 19);
-                        const thu = dayOfWeek === 4 && thuT && (hours >= 19);
-                        const sat = dayOfWeek === 6 && satT && (hours >= 10 && hours <= 13);
-                        console.log(childrenClasses);
-                       return newDate > comparisonDate && childrenClasses && !monL && !wedL && !thu && !sat;
-                      })
-                      .map((timeslot) => (
-                        <li
-                          key={timeslot.id}
-                          className={`list-group-item text-center ${
-                            isTimeslotSelected(timeslot) ? 'active' : ''
-                          } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
-                          onClick={() => handleSelectTimeslot(timeslot)}
-                        >
-                          {timeslot.start_time.substring(0, timeslot.start_time.lastIndexOf(':'))} - {timeslot.end_time.substring(0, timeslot.end_time.lastIndexOf(':'))}
-                          {isSlotOccupied(timeslot) ? ` бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}` : ' Свободно'}
-                          
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              </div> */}
               <div className="card" onClick={() => handleSelectTable(table)}>
                 <div className="card-body">
                     <h5 className="card-title d-flex justify-content-between m-0 align-items-center ">
@@ -337,12 +301,12 @@ const App = () => {
                                           let newDate = new Date(originalDate);
                                           newDate.setHours(hours, minutes);
                                           const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
-                                          const monL = dayOfWeek === 1 && monladder && (hours >= 19);
-                                          const wedL = dayOfWeek === 3 && wedladder && (hours >= 19);
-                                          const thu = dayOfWeek === 4 && thuT && (hours >= 19);
-                                          const sat = dayOfWeek === 6 && satT && (hours >= 10 && hours <= 13);
-                                          console.log(childrenClasses);
-                                          return newDate > comparisonDate && childrenClasses && !monL && !wedL && !thu && !sat;
+                                          const mon = dayOfWeek === 1 && monday && (hours >= 19);
+                                          const wed = dayOfWeek === 3 && wednesday && (hours >= 19);
+                                          const thu = dayOfWeek === 4 && thusday && (hours >= 19);
+                                          const sat = dayOfWeek === 6 && saturday && (hours >= 10 && hours <= 13);
+                                          const fri = dayOfWeek === 5 && friday && (hours >= 19);
+                                          return newDate > comparisonDate && childrenClasses && !mon && !wed && !thu && !sat && !fri;
                                       })
                                       .map((timeslot) => (
                                           <li
@@ -457,34 +421,41 @@ const App = () => {
       <Form.Check 
             type="switch"
             id="monladder-switch"
-            label={monladder ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
-            checked={monladder}
-            onChange={() => setMonladder(!monladder)}
+            label={monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
+            checked={monday}
+            onChange={() => setMonday(!monday)}
         />
 
         <Form.Check 
             type="switch"
             id="wedladder-switch"
-            label={wedladder ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
-            checked={wedladder}
-            onChange={() => setWedladder(!wedladder)}
+            label={wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
+            checked={wednesday}
+            onChange={() => setWednesday(!wednesday)}
         />
 
         <Form.Check 
             type="switch"
             id="thuT-switch"
-            label={thuT ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
-            checked={thuT}
-            onChange={() => setThuT(!thuT)}
+            label={thusday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={thusday}
+            onChange={() => setThusday(!thusday)}
         />
-
+           <Form.Check 
+            type="switch"
+            id="satT-switch"
+            label={friday ? 'Доступность бронирования на день пятницы отменена' : 'Доступность бронирования на день пятницы включена'}
+            checked={friday}
+            onChange={() => setFriday(!friday)}
+        />
         <Form.Check 
             type="switch"
             id="satT-switch"
-            label={satT ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
-            checked={satT}
-            onChange={() => setSatT(!satT)}
+            label={saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
+            checked={saturday}
+            onChange={() => setSaturday(!saturday)}
         />
+      
       <div className="row">
         {Object.keys(groupedReservations).sort().map((date) => (
           <div className = "col-sm-6 col-md-6" key={date}>
