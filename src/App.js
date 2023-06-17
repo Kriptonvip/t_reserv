@@ -23,16 +23,11 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [monday, setMonday] = useState(false);
   const [wednesday, setWednesday] = useState(false);
-  const [thusday, setThusday] = useState(false);
+  const [thursday, setThursday] = useState(false);
   const [saturday, setSaturday] = useState(false);
   const [friday, setFriday] = useState(false);
   const [open, setOpen] = useState({});
   const [show, setShow] = useState(false);
-  const [isSticky, setSticky] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const checkScreenSize = () => {
-    setIsMobile(window.innerWidth < 768);
-  };
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
   
@@ -42,24 +37,6 @@ const App = () => {
       [id]: !prevOpen[id],
     }));
   };
-  // const checkScrollTop = () => {    
-  //   if (!isSticky && window.pageYOffset > 300){
-  //     setSticky(true);
-  //   } else if (isSticky && window.pageYOffset <= 300){
-  //     setSticky(false);
-  //   }
-  // };
-
-  // useEffect(() => {
-  //   window.addEventListener('scroll', checkScrollTop);
-  //   window.addEventListener('resize', checkScreenSize);
-  //   checkScreenSize();
-  //   return () => {
-  //     window.removeEventListener('scroll', checkScrollTop);
-  //     window.removeEventListener('resize', checkScreenSize);
-  //   }
-  // }, [isSticky, isMobile]);
-
   const loadOccupiedSlots = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/reservations/occupied_slots.php`);
@@ -83,6 +60,7 @@ const App = () => {
   useEffect(() => {
     loadOccupiedSlots();
     loadReservations();
+    handleLoadWeekdays()
   }, []);
 
   const handleDateChange = (date) => {
@@ -210,9 +188,6 @@ const App = () => {
        const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
         return hasInReserv && reservation.confirmed === "1";
       })
-  if (error) {
-    return <div className="alert alert-danger">{error}</div>;
-  }
 
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -236,7 +211,12 @@ const App = () => {
         break;
     }
   };
-  
+    useEffect(() => {
+    loadOccupiedSlots();
+    loadReservations();
+    handleLoadWeekdays()
+    
+  }, []);
   const groupedReservations = reservations.reduce((acc, reservation) => {
     const { date, timeslots, confirmed, id } = reservation;
     if (!acc[date]) {
@@ -263,7 +243,81 @@ const App = () => {
       return a.start_time.localeCompare(b.start_time);
     });
   }
-  console.log(selectedDate);
+
+  const handleSaveWeekdays = async () => {
+
+    const weekdaysData = {
+      monday,
+      wednesday,
+      thursday,
+      saturday,
+      friday,
+    };
+    
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/weekdays/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(weekdaysData),
+      });
+
+      if (response.ok) {
+        console.log('weekdaysData handleSaveWeekdays',weekdaysData)
+      } else {
+        // Обработка ошибки сохранения состояния
+      }
+    } catch (error) {
+      // Обработка ошибки запроса
+    }
+  };
+
+  const handleLoadWeekdays = async () => {
+    console.log('handleLoadWeekdays called');
+    try {
+      const response = await fetch(`${API_BASE_URL}/weekdays/index.php`);
+      const weekdaysData = await response.json();
+      console.log('weekdaysData response', weekdaysData)
+      setMonday(weekdaysData.monday);
+      setWednesday(weekdaysData.wednesday);
+      setThursday(weekdaysData.thursday);
+      setSaturday(weekdaysData.saturday);
+      setFriday(weekdaysData.friday);
+    } catch (error) {
+      // Обработка ошибки запроса
+    }
+  };
+  const handleMondayToggle = () => {
+    setMonday((prevMonday) => {
+      const newMonday = !prevMonday;
+      console.log('newMonday', newMonday)
+      handleSaveWeekdays(newMonday); // Вызываем handleSaveWeekdays с новым значением
+      return newMonday; // Возвращаем новое значение в setMonday
+    });
+   
+  };
+  const handleWednesdayToggle = () => {
+    setWednesday(!wednesday)
+    handleSaveWeekdays();
+  };
+  const handleThursdayToggle = () => {
+    setThursday(!thursday);
+    handleSaveWeekdays();
+  };
+  const handleSaturdayToggle = () => {
+    setSaturday(!saturday);
+    handleSaveWeekdays();
+  };
+  const handleFridayToggle = () => {
+    setFriday(!friday);
+    handleSaveWeekdays();
+  };
+
+  if (error) {
+    return <div className="alert alert-danger">{error}</div>;
+  }
 
   return (
     <div className="container">
@@ -303,7 +357,7 @@ const App = () => {
                                           const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
                                           const mon = dayOfWeek === 1 && monday && (hours >= 19);
                                           const wed = dayOfWeek === 3 && wednesday && (hours >= 19);
-                                          const thu = dayOfWeek === 4 && thusday && (hours >= 19);
+                                          const thu = dayOfWeek === 4 && thursday && (hours >= 19);
                                           const sat = dayOfWeek === 6 && saturday && (hours >= 10 && hours <= 13);
                                           const fri = dayOfWeek === 5 && friday && (hours >= 19);
                                           return newDate > comparisonDate && childrenClasses && !mon && !wed && !thu && !sat && !fri;
@@ -333,8 +387,7 @@ const App = () => {
       )}
      <Button 
         variant="success" 
-        className={`m-3  ${isMobile ? (isSticky ? 'position-sticky' : 'fixed-bottom') : 'd-block w-50 mx-auto'}`} 
-        style={isMobile ? {bottom: '20px'} : {}} 
+        className='m-3 position-sticky fixed-bottom d-block w-50 mx-auto'
         onClick={handleShow}
       >
         Забронировать
@@ -408,7 +461,6 @@ const App = () => {
               <option value="">Способ оплаты</option>
               <option value="card">Банковской картой в зале</option>
               <option value="cash">Наличными в зале</option>
-              <option value="subscription">У меня абонемент</option>
             </select>
           </div>
           <button type="submit" className="btn btn-primary mt-2">
@@ -423,7 +475,7 @@ const App = () => {
             id="monladder-switch"
             label={monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
             checked={monday}
-            onChange={() => setMonday(!monday)}
+            onChange={handleMondayToggle}
         />
 
         <Form.Check 
@@ -431,29 +483,29 @@ const App = () => {
             id="wedladder-switch"
             label={wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
             checked={wednesday}
-            onChange={() => setWednesday(!wednesday)}
+            onChange={handleWednesdayToggle}
         />
 
         <Form.Check 
             type="switch"
             id="thuT-switch"
-            label={thusday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
-            checked={thusday}
-            onChange={() => setThusday(!thusday)}
-        />
+            label={thursday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={thursday}
+            onChange={handleThursdayToggle}
+        /> 
            <Form.Check 
             type="switch"
             id="satT-switch"
             label={friday ? 'Доступность бронирования на день пятницы отменена' : 'Доступность бронирования на день пятницы включена'}
             checked={friday}
-            onChange={() => setFriday(!friday)}
+            onChange={handleFridayToggle}
         />
         <Form.Check 
             type="switch"
             id="satT-switch"
             label={saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
             checked={saturday}
-            onChange={() => setSaturday(!saturday)}
+            onChange={handleSaturdayToggle}
         />
       
       <div className="row">
