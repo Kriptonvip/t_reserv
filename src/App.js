@@ -64,7 +64,6 @@ const App = () => {
     loadOccupiedSlots();
     loadReservations();
     handleLoadWeekdays();
-    setSkipInitial(false); // Устанавливаем skipInitial в false после первой инициализации
   }, []);
 
   const handleDateChange = (date) => {
@@ -246,39 +245,41 @@ const App = () => {
  
 
   const handleToggleWeekday = (weekday) => {
+    setSkipInitial(false); // Устанавливаем skipInitial в false после первой инициализации
     setWeekdays((prevWeekdays) => ({
       ...prevWeekdays,
       [weekday]: !prevWeekdays[weekday],
     }));
   };
   // useEffect для handleSaveWeekdays
-  useEffect(() => {
-    const handleSaveWeekdays = async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/weekdays/`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(weekdays),
-        });
-  
-        if (response.ok) {
-          // Состояние сохранено успешно
-        } else {
-          // Обработка ошибки сохранения состояния
-        }
-      } catch (error) {
-        // Обработка ошибки запроса
+  const handleSaveWeekdays = async () => {
+    console.log('handleSaveWeekdays was start')
+    try {
+      const response = await fetch(`${API_BASE_URL}/weekdays/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(weekdays),
+      });
+
+      if (response.ok) {
+        // Состояние сохранено успешно
+      } else {
+        // Обработка ошибки сохранения состояния
       }
-    };
+    } catch (error) {
+      // Обработка ошибки запроса
+    }
+  };
+
   
+  useEffect(() => {
     if (skipInitial) {
       return;
     }
-  
     handleSaveWeekdays();
-  }, [weekdays, skipInitial]);
+  }, [weekdays]);
   
 
   const handleLoadWeekdays = async () => {
