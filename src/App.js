@@ -21,11 +21,14 @@ const App = () => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [monday, setMonday] = useState(false);
-  const [wednesday, setWednesday] = useState(false);
-  const [thursday, setThursday] = useState(false);
-  const [saturday, setSaturday] = useState(false);
-  const [friday, setFriday] = useState(false);
+  const [weekdays, setWeekdays] = useState({
+    monday: false,
+    wednesday: false,
+    thursday: false,
+    saturday: false,
+    friday: false,
+  });
+  const [skipInitial, setSkipInitial] = useState(true);
   const [open, setOpen] = useState({});
   const [show, setShow] = useState(false);
   const handleClose = () => setShow(false);
@@ -60,7 +63,8 @@ const App = () => {
   useEffect(() => {
     loadOccupiedSlots();
     loadReservations();
-    handleLoadWeekdays()
+    handleLoadWeekdays();
+    setSkipInitial(false); // Устанавливаем skipInitial в false после первой инициализации
   }, []);
 
   const handleDateChange = (date) => {
@@ -211,12 +215,7 @@ const App = () => {
         break;
     }
   };
-    useEffect(() => {
-    loadOccupiedSlots();
-    loadReservations();
-    handleLoadWeekdays()
-    
-  }, []);
+
   const groupedReservations = reservations.reduce((acc, reservation) => {
     const { date, timeslots, confirmed, id } = reservation;
     if (!acc[date]) {
@@ -244,76 +243,55 @@ const App = () => {
     });
   }
 
-  const handleSaveWeekdays = async () => {
+ 
 
-    const weekdaysData = {
-      monday,
-      wednesday,
-      thursday,
-      saturday,
-      friday,
-    };
-    
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/weekdays/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(weekdaysData),
-      });
-
-      if (response.ok) {
-        console.log('weekdaysData handleSaveWeekdays',weekdaysData)
-      } else {
-        // Обработка ошибки сохранения состояния
-      }
-    } catch (error) {
-      // Обработка ошибки запроса
-    }
+  const handleToggleWeekday = (weekday) => {
+    setWeekdays((prevWeekdays) => ({
+      ...prevWeekdays,
+      [weekday]: !prevWeekdays[weekday],
+    }));
   };
+  // useEffect для handleSaveWeekdays
+  useEffect(() => {
+    const handleSaveWeekdays = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/weekdays/`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(weekdays),
+        });
+  
+        if (response.ok) {
+          // Состояние сохранено успешно
+        } else {
+          // Обработка ошибки сохранения состояния
+        }
+      } catch (error) {
+        // Обработка ошибки запроса
+      }
+    };
+  
+    if (skipInitial) {
+      return;
+    }
+  
+    handleSaveWeekdays();
+  }, [weekdays, skipInitial]);
+  
 
   const handleLoadWeekdays = async () => {
     console.log('handleLoadWeekdays called');
     try {
       const response = await fetch(`${API_BASE_URL}/weekdays/index.php`);
       const weekdaysData = await response.json();
-      console.log('weekdaysData response', weekdaysData)
-      setMonday(weekdaysData.monday);
-      setWednesday(weekdaysData.wednesday);
-      setThursday(weekdaysData.thursday);
-      setSaturday(weekdaysData.saturday);
-      setFriday(weekdaysData.friday);
+      setWeekdays(weekdaysData);
     } catch (error) {
       // Обработка ошибки запроса
     }
   };
-  const handleMondayToggle = () => {
-    setMonday((prevMonday) => {
-      const newMonday = !prevMonday;
-      console.log('newMonday', newMonday)
-      handleSaveWeekdays(newMonday); // Вызываем handleSaveWeekdays с новым значением
-      return newMonday; // Возвращаем новое значение в setMonday
-    });
-   
-  };
-  const handleWednesdayToggle = () => {
-    setWednesday(!wednesday)
-    handleSaveWeekdays();
-  };
-  const handleThursdayToggle = () => {
-    setThursday(!thursday);
-    handleSaveWeekdays();
-  };
-  const handleSaturdayToggle = () => {
-    setSaturday(!saturday);
-    handleSaveWeekdays();
-  };
-  const handleFridayToggle = () => {
-    setFriday(!friday);
-    handleSaveWeekdays();
-  };
+  
 
   if (error) {
     return <div className="alert alert-danger">{error}</div>;
@@ -355,11 +333,11 @@ const App = () => {
                                           let newDate = new Date(originalDate);
                                           newDate.setHours(hours, minutes);
                                           const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
-                                          const mon = dayOfWeek === 1 && monday && (hours >= 19);
-                                          const wed = dayOfWeek === 3 && wednesday && (hours >= 19);
-                                          const thu = dayOfWeek === 4 && thursday && (hours >= 19);
-                                          const sat = dayOfWeek === 6 && saturday && (hours >= 10 && hours <= 13);
-                                          const fri = dayOfWeek === 5 && friday && (hours >= 19);
+                                          const mon = dayOfWeek === 1 && weekdays.monday && (hours >= 19);
+                                          const wed = dayOfWeek === 3 && weekdays.wednesday && (hours >= 19);
+                                          const thu = dayOfWeek === 4 && weekdays.thursday && (hours >= 19);
+                                          const sat = dayOfWeek === 6 && weekdays.saturday && (hours >= 10 && hours <= 13);
+                                          const fri = dayOfWeek === 5 && weekdays.friday && (hours >= 19);
                                           return newDate > comparisonDate && childrenClasses && !mon && !wed && !thu && !sat && !fri;
                                       })
                                       .map((timeslot) => (
@@ -470,43 +448,45 @@ const App = () => {
           </Modal.Body>
        </Modal>
       <h2>Управление бронированиями</h2>
-      <Form.Check 
+      <Form.Check
             type="switch"
             id="monladder-switch"
-            label={monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
-            checked={monday}
-            onChange={handleMondayToggle}
-        />
+            label={weekdays.monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
+            checked={weekdays.monday}
+            onChange={() => handleToggleWeekday('monday')}
+          />
 
-        <Form.Check 
+          <Form.Check
             type="switch"
             id="wedladder-switch"
-            label={wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
-            checked={wednesday}
-            onChange={handleWednesdayToggle}
-        />
+            label={weekdays.wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
+            checked={weekdays.wednesday}
+            onChange={() => handleToggleWeekday('wednesday')}
+          />
 
-        <Form.Check 
+          <Form.Check
             type="switch"
             id="thuT-switch"
-            label={thursday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
-            checked={thursday}
-            onChange={handleThursdayToggle}
-        /> 
-           <Form.Check 
+            label={weekdays.thursday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={weekdays.thursday}
+            onChange={() => handleToggleWeekday('thursday')}
+          />
+
+          <Form.Check
             type="switch"
             id="satT-switch"
-            label={friday ? 'Доступность бронирования на день пятницы отменена' : 'Доступность бронирования на день пятницы включена'}
-            checked={friday}
-            onChange={handleFridayToggle}
-        />
-        <Form.Check 
+            label={weekdays.friday ? 'Доступность бронирования на день пятницы отменена' : 'Доступность бронирования на день пятницы включена'}
+            checked={weekdays.friday}
+            onChange={() => handleToggleWeekday('friday')}
+          />
+
+          <Form.Check
             type="switch"
             id="satT-switch"
-            label={saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
-            checked={saturday}
-            onChange={handleSaturdayToggle}
-        />
+            label={weekdays.saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
+            checked={weekdays.saturday}
+            onChange={() => handleToggleWeekday('saturday')}
+          />
       
       <div className="row">
         {Object.keys(groupedReservations).sort().map((date) => (
