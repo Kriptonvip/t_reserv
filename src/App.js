@@ -488,24 +488,45 @@ const App = () => {
     {!!window.isUserLoggedIn ? null : 
     ( <>
       <h2>Управление бронированиями</h2>
-      {Object.entries(weekdays).map(([day, value]) => (
-        <Form.Check
-          type="switch"
-          id={`${day}-switch`}
-          label={
-            day === 'saturday'
-              ? value
-                ? 'Доступность бронирования на день субботы отменена'
-                : 'Доступность бронирования на день субботы включена'
-              : value
-              ? `Доступность бронирования на вечер ${day} отменена`
-              : `Доступность бронирования на вечер ${day} включена`
-          }
-          checked={value}
-          onChange={() => handleToggleWeekday(day)}
-          key={`${day}-switch`}
-        />
-      ))}
+      <Form.Check
+            type="switch"
+            id="monladder-switch"
+            label={weekdays.monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
+            checked={weekdays.monday}
+            onChange={() => handleToggleWeekday('monday')}
+          />
+
+          <Form.Check
+            type="switch"
+            id="wedladder-switch"
+            label={weekdays.wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
+            checked={weekdays.wednesday}
+            onChange={() => handleToggleWeekday('wednesday')}
+          />
+
+          <Form.Check
+            type="switch"
+            id="thuT-switch"
+            label={weekdays.thursday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={weekdays.thursday}
+            onChange={() => handleToggleWeekday('thursday')}
+          />
+
+          <Form.Check
+            type="switch"
+            id="satT-switch"
+            label={weekdays.friday ? 'Доступность бронирования на вечер пятницы отменена' : 'Доступность бронирования на вечер пятницы включена'}
+            checked={weekdays.friday}
+            onChange={() => handleToggleWeekday('friday')}
+          />
+
+          <Form.Check
+            type="switch"
+            id="satT-switch"
+            label={weekdays.saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
+            checked={weekdays.saturday}
+            onChange={() => handleToggleWeekday('saturday')}
+          />
       
       <div className="row">
       {Object.keys(groupedReservations).sort().map((date) => (
