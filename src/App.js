@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
-import 'react-calendar/dist/Calendar.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
+// eslint-disable-next-line no-unused-vars
+import styles from './styles.css';
 import { tables, timeslots } from './data';
 import { Form, Button, Collapse } from 'react-bootstrap';
 import Modal from 'react-bootstrap/Modal';
@@ -13,11 +13,11 @@ const App = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedTimeslots, setSelectedTimeslots] = useState([]);
-  const [name, setName] = useState('test');
-  const [phone, setPhone] = useState('test');
-  const [email, setEmail] = useState('test@mail.ru');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentMethod, setPaymentMethod] = useState('');
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,39 +143,74 @@ const App = () => {
       });
   };
 
-  const deleteReservation = (reservationId) => {
-    console.log(reservationId);
-    fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
-      method: 'DELETE',
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === 'success') {
-          loadOccupiedSlots();
-          loadReservations();
-          // alert('Бронирование успешно удалено!');
-        } else {
-          alert('Произошла ошибка при удалении бронирования');
-        }
-      });
-  };
+  // const deleteReservation = (reservationId) => {
+  //   console.log(reservationId);
+  //   fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
+  //     method: 'DELETE',
+  //   })
+  //     .then((response) => response.json())
+  //     .then((data) => {
+  //       if (data.status === 'success') {
+  //         loadOccupiedSlots();
+  //         loadReservations();
+  //         // alert('Бронирование успешно удалено!');
+  //       } else {
+  //         alert('Произошла ошибка при удалении бронирования');
+  //       }
+  //     });
+  // };
 
-  const confirmReservation = (reservationId) => {
-    console.log(reservationId);
-    fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
-      method: 'PUT',
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.status === 'success') {
-          loadOccupiedSlots();
-          loadReservations();
-          // alert('Бронирование успешно подтверждено!');
-        } else {
-          alert('Произошла ошибка при подтверждении бронирования');
-        }
-      });
+  // const confirmReservation = (reservationId) => {
+  //   console.log(reservationId);
+  //   fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
+  //     method: 'PUT',
+  //   })
+  //     .then((response) => response.json())
+  //     .then((data) => {
+  //       if (data.status === 'success') {
+  //         loadOccupiedSlots();
+  //         loadReservations();
+  //         // alert('Бронирование успешно подтверждено!');
+  //       } else {
+  //         alert('Произошла ошибка при подтверждении бронирования');
+  //       }
+  //     });
+  // };
+  const deleteReservations = (reservationIds) => {
+    reservationIds.forEach((reservationId) => {
+      fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
+        method: 'DELETE',
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.status === 'success') {
+            loadOccupiedSlots();
+            loadReservations();
+          } else {
+            alert('Произошла ошибка при удалении бронирования');
+          }
+        });
+    });
   };
+  
+  const confirmReservations = (reservationIds) => {
+    reservationIds.forEach((reservationId) => {
+      fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
+        method: 'PUT',
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.status === 'success') {
+            loadOccupiedSlots();
+            loadReservations();
+          } else {
+            alert('Произошла ошибка при подтверждении бронирования');
+          }
+        });
+    });
+  };
+  
+
 
   const isTimeslotSelected = (timeslot) =>
     selectedTimeslots.some((selectedSlot) => selectedSlot.id === timeslot.id);
@@ -216,7 +251,7 @@ const App = () => {
   };
 
   const groupedReservations = reservations.reduce((acc, reservation) => {
-    const { date, timeslots, confirmed, id } = reservation;
+    const { date, timeslots, confirmed, id, name, phone, comment } = reservation;
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -226,7 +261,10 @@ const App = () => {
       table_id: timeslot.table_id,
       start_time: timeslot.start_time,
       end_time: timeslot.end_time,
-      confirmed: confirmed
+      confirmed,
+      name,
+      phone, 
+      comment
     }));
     acc[date] = acc[date].concat(formattedTimeslots);
     return acc;
@@ -253,7 +291,6 @@ const App = () => {
   };
   // useEffect для handleSaveWeekdays
   const handleSaveWeekdays = async () => {
-    console.log('handleSaveWeekdays was start')
     try {
       const response = await fetch(`${API_BASE_URL}/weekdays/`, {
         method: 'POST',
@@ -279,11 +316,11 @@ const App = () => {
       return;
     }
     handleSaveWeekdays();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekdays]);
   
 
   const handleLoadWeekdays = async () => {
-    console.log('handleLoadWeekdays called');
     try {
       const response = await fetch(`${API_BASE_URL}/weekdays/index.php`);
       const weekdaysData = await response.json();
@@ -302,7 +339,7 @@ const App = () => {
     <div className="container">
       <Calendar onChange={handleDateChange} value={selectedDate} className="mx-auto m-3"/>
 
-      <h2  className="text-center m-2">Выберите стол и время бронирования</h2>
+      <h2  className="text-center m-2">Выберите дату, стол и время бронирования</h2>
       {!loading ? (
         <div className="row">
           {tables.map((table) => (
@@ -448,6 +485,8 @@ const App = () => {
           </form>
           </Modal.Body>
        </Modal>
+    {!!window.isUserLoggedIn ? null : 
+    ( <>
       <h2>Управление бронированиями</h2>
       <Form.Check
             type="switch"
@@ -476,7 +515,7 @@ const App = () => {
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={weekdays.friday ? 'Доступность бронирования на день пятницы отменена' : 'Доступность бронирования на день пятницы включена'}
+            label={weekdays.friday ? 'Доступность бронирования на вечер пятницы отменена' : 'Доступность бронирования на вечер пятницы включена'}
             checked={weekdays.friday}
             onChange={() => handleToggleWeekday('friday')}
           />
@@ -490,30 +529,61 @@ const App = () => {
           />
       
       <div className="row">
-        {Object.keys(groupedReservations).sort().map((date) => (
-          <div className = "col-sm-6 col-md-6" key={date}>
-            <p>Бронирование на дату: {date}</p>
-            <ul className="list-group">
-              {groupedReservations[date].map((reservation) => {
-                const { id, start_time, end_time, table_id } = reservation;
-                const table = table_id;
-                const confirmed = reservation.confirmed;
-                return (
-                  <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
-                    Стол №{table} {start_time} - {end_time}
-                    <button className="btn btn-danger m-2"  onClick={() => deleteReservation(reservation.id)}>Удалить</button>
+      {Object.keys(groupedReservations).sort().map((date) => (
+        <div className="col-sm-6 col-md-6" key={date}>
+          <p>Бронирование на дату: {date}</p>
+          <ul className="list-group">
+            {groupedReservations[date].reduce((acc, reservation) => {
+              const { id, start_time, end_time, table_id, name, phone, comment } = reservation;
+              const confirmed = reservation.confirmed;
+              const lastReservation = acc[acc.length - 1];
+
+              if (lastReservation && lastReservation.phone === phone && lastReservation.end_time === start_time) {
+                // Смежные таймслоты, забронированные одним человеком
+                lastReservation.end_time = end_time;
+                lastReservation.reservationIds.push(id);
+              } else {
+                // Новый таймслот
+                acc.push({
+                  id,
+                  start_time,
+                  end_time,
+                  table_id,
+                  name,
+                  phone,
+                  comment,
+                  confirmed,
+                  reservationIds: [id], // Создаем массив с одним элементом - текущим id резерва
+                });
+              }
+
+              return acc;
+            }, []).map((reservation) => {
+              const { id, start_time, end_time, table_id, name, phone, comment, confirmed, reservationIds } = reservation;
+              return (
+                <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
+                  <div>
+                    <p> Имя: {name}</p>
+                    <p>Телефон: {phone}</p>
+                    <p>Комментарий: {comment}</p>
+                    <p>Стол №{table_id} {start_time} - {end_time}</p>
+                  </div>
+                  <div>
+                    <button className="btn btn-danger m-2" onClick={() => deleteReservations(reservationIds)}>Удалить</button>
                     {confirmed === "1" ? null : (
-                      <button className="btn btn-success" onClick={() => confirmReservation(reservation.id)}>Подтвердить</button>
+                      <button className="btn btn-success" onClick={() => confirmReservations(reservationIds)}>Подтвердить</button>
                     )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        ))}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+
       </div>
-
-
+      </>
+    )} 
     </div>
   );
 };
