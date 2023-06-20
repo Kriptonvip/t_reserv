@@ -21,6 +21,7 @@ const App = () => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dayOfWeek, setWeekDay] = useState(selectedDate.getDay());
   const [weekdays, setWeekdays] = useState({
     monday: false,
     wednesday: false,
@@ -59,17 +60,19 @@ const App = () => {
       setError(error.toString());
     }
   };
-
+  const isWorkDay = (day) => day >= 1 && day <= 5;
   useEffect(() => {
     loadOccupiedSlots();
     loadReservations();
     handleLoadWeekdays();
   }, []);
 
+
   const handleDateChange = (date) => {
     const originalDate = new Date(date);
     const GMT3Date = new Date(originalDate.getTime() + 3 * 60 * 60 * 1000);
-    setSelectedDate(GMT3Date);   
+    setSelectedDate(GMT3Date);
+    setWeekDay(GMT3Date.getDay());
     setSelectedTimeslots([]);
   };
 
@@ -77,7 +80,44 @@ const App = () => {
     setSelectedTable(table);
   };
 
+  const isRange = (arr) => {
+    const sortedArr = arr.map(obj => obj.id).sort((a, b) => a - b); // Получаем массив id и сортируем его по возрастанию
+    const min = sortedArr[0]; // Минимальное значение
+  
+    // Проверяем, является ли массив диапазоном чисел
+    return sortedArr.every((value, index) => value === min + index);
+  }
+
+  function addMissingObjects(arr) {
+    const sortedArr = arr.map(obj => obj.id).sort((a, b) => a - b); // Получаем массив id и сортируем его по возрастанию
+    const min = sortedArr[0]; // Минимальное значение
+    const max = sortedArr[arr.length - 1]; // Максимальное значение
+  
+    const missingIds = []; // Массив для хранения недостающих id
+  
+    // Проверяем, является ли массив диапазоном чисел
+    if (!isRange(arr)) {
+      for (let i = min; i <= max; i++) {
+        if (!sortedArr.includes(i)) {
+          missingIds.push(i); // Добавляем недостающие id в массив missingIds
+        }
+      }
+    }
+  
+    // Создаем новый массив с добавленными недостающими объектами
+    const newArray = arr.concat(
+      missingIds.map(id => {
+        // Создаем новый объект с недостающим id
+        return timeslots[id - 1];
+      })
+    );
+  
+    return newArray;
+  }
+
   const handleSelectTimeslot = (timeslot) => {
+    console.log(timeslot);
+    console.log(selectedTimeslots);
     const isSlotOccupied = occupiedSlots.some(
       (occupiedSlot) =>
         occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
@@ -87,11 +127,37 @@ const App = () => {
     if (isSlotOccupied) {
       return;
     }
-
+    const rateTimeFlags = [13, 14, 15];
+      const isTimeslotInRateTime = rateTimeFlags.some(value => timeslot.start_time.includes(value))
+      const hasSelectedTime = selectedTimeslots.some(slot => {
+        const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
+        return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
+      });
+      // если время выбранных таймслотов с 13 до 16, то нельзя вырать время позже
+      if (hasSelectedTime && !isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
+        console.log('ratetime', dayOfWeek)
+      return;
+    }
+    if (selectedTimeslots.length > 0 && !hasSelectedTime && isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
+      console.log('hourpaytime')
+    return;
+  }
     if (selectedTimeslots.includes(timeslot)) {
-      setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id !== timeslot.id));
+      setSelectedTimeslots((prevTimeslots) => {
+        if(isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))){
+          return prevTimeslots.filter((slot) => slot.id !== timeslot.id)
+        }
+       return addMissingObjects([...prevTimeslots.filter((slot) => slot.id !== timeslot.id), timeslot]); 
+       // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
+      });
     } else {
-      setSelectedTimeslots((prevTimeslots) => [...prevTimeslots, timeslot]);
+     
+      setSelectedTimeslots((prevTimeslots) => {
+        if(isRange([...prevTimeslots, timeslot])){ // если слоты не идут по порядку, и есть пропуски то добавляем пропущеные слоты.
+          return [...prevTimeslots, timeslot]
+        }
+        return addMissingObjects([...prevTimeslots, timeslot]);
+      });
     }
   };
 
@@ -143,39 +209,6 @@ const App = () => {
       });
   };
 
-  // const deleteReservation = (reservationId) => {
-  //   console.log(reservationId);
-  //   fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
-  //     method: 'DELETE',
-  //   })
-  //     .then((response) => response.json())
-  //     .then((data) => {
-  //       if (data.status === 'success') {
-  //         loadOccupiedSlots();
-  //         loadReservations();
-  //         // alert('Бронирование успешно удалено!');
-  //       } else {
-  //         alert('Произошла ошибка при удалении бронирования');
-  //       }
-  //     });
-  // };
-
-  // const confirmReservation = (reservationId) => {
-  //   console.log(reservationId);
-  //   fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
-  //     method: 'PUT',
-  //   })
-  //     .then((response) => response.json())
-  //     .then((data) => {
-  //       if (data.status === 'success') {
-  //         loadOccupiedSlots();
-  //         loadReservations();
-  //         // alert('Бронирование успешно подтверждено!');
-  //       } else {
-  //         alert('Произошла ошибка при подтверждении бронирования');
-  //       }
-  //     });
-  // };
   const deleteReservations = (reservationIds) => {
     reservationIds.forEach((reservationId) => {
       fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
@@ -329,11 +362,54 @@ const App = () => {
       // Обработка ошибки запроса
     }
   };
-  
 
-  if (error) {
-    return <div className="alert alert-danger">{error}</div>;
+  function getOverallTime(slots) {
+    if (slots.length === 0) {
+      return [];
+    }
+    slots.sort((a, b) => {
+      return a.start_time.localeCompare(b.start_time);
+    });
+  
+    const startTime = slots[0].start_time.slice(0, 5);
+    const endTime = slots[slots.length - 1].end_time.slice(0, 5);
+  
+    return [startTime, endTime];
   }
+  
+  function calculateTableRentCost(startTimeSlot, endTimeSlot, reservDayOfWeek) {
+    if(startTimeSlot === undefined && endTimeSlot === undefined) {
+      return '0 рублей';
+    }
+    const [startH, startM] = startTimeSlot.split(':');
+    const [endH, endM] = endTimeSlot.split(':');
+    const startTime = new Date(0, 0, 0, startH, startM); // 13:00
+    const endTime = new Date(0, 0, 0, endH, endM); // 16:30
+
+    const weekdayRateStartTime = 13; // Начальное время с рабочей ставкой
+    const weekdayRateEndTime = 16; // Конечное время с рабочей ставкой
+    const weekdayRate = 200; // Стоимость аренды в рабочие часы
+  
+    const hourlyRate = 400; // Стоимость аренды за час в остальное время
+  
+    // Вычисляем количество часов бронирования
+    const duration = (endTime - startTime) / (60 * 60 * 1000); // Предполагается, что startTime и endTime представляют себя время в миллисекундах
+  
+    // Проверяем, попадает ли время бронирования в рабочие часы
+    if (
+      startTime.getHours() >= weekdayRateStartTime &&
+      (endTime.getHours() < weekdayRateEndTime || (endTime.getHours() === weekdayRateEndTime && endTime.getMinutes() === 0)) &&
+      isWorkDay(reservDayOfWeek)
+    ) {
+      return weekdayRate + ' рублей c человека';
+    }
+  
+    // В остальных случаях возвращаем стоимость аренды за час, умноженную на количество часов бронирования
+    return hourlyRate * duration + ' рублей';
+  }
+
+  const [stT, andT] = getOverallTime(selectedTimeslots)
+
 
   return (
     <div className="container">
@@ -364,13 +440,12 @@ const App = () => {
                                   {timeslots
                                       .filter((timeslot) => timeslot.table_id === table.id)
                                       .filter((timeslot) => {
-                                          const dayOfWeek = selectedDate.getDay()
                                           let originalDate = new Date(selectedDate);
                                           let comparisonDate = new Date();
                                           const [hours, minutes] = timeslot.start_time.split(':');
                                           let newDate = new Date(originalDate);
                                           newDate.setHours(hours, minutes);
-                                          const childrenClasses = !((dayOfWeek >= 1 && dayOfWeek <= 5) && (hours >= 10 && hours < 13))
+                                          const childrenClasses = !(isWorkDay(dayOfWeek) && (hours >= 10 && hours < 13))
                                           const mon = dayOfWeek === 1 && weekdays.monday && (hours >= 19);
                                           const wed = dayOfWeek === 3 && weekdays.wednesday && (hours >= 19);
                                           const thu = dayOfWeek === 4 && weekdays.thursday && (hours >= 19);
@@ -406,7 +481,7 @@ const App = () => {
         className='m-3 position-sticky fixed-bottom d-block w-50 mx-auto'
         onClick={handleShow}
       >
-        Забронировать
+        Забронировать (Цена: {calculateTableRentCost(stT, andT, selectedDate.getDay())})
       </Button>
 
 
@@ -479,8 +554,8 @@ const App = () => {
               <option value="cash">Наличными в зале</option>
             </select>
           </div>
-          <button type="submit" className="btn btn-primary mt-2">
-            Оформить бронь
+          <button type="submit" className="btn btn-primary mt-2 d-block mx-auto">
+          Забронировать (Цена: {calculateTableRentCost(stT, andT, selectedDate.getDay())})
           </button>
           </form>
           </Modal.Body>
@@ -563,10 +638,11 @@ const App = () => {
               return (
                 <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
                   <div>
-                    <p> Имя: {name}</p>
+                    <p>Имя: {name}</p>
                     <p>Телефон: {phone}</p>
                     <p>Комментарий: {comment}</p>
                     <p>Стол №{table_id} {start_time} - {end_time}</p>
+                    <p>Стоимость: {calculateTableRentCost(start_time,end_time, new Date(date).getDay())}</p>
                   </div>
                   <div>
                     <button className="btn btn-danger m-2" onClick={() => deleteReservations(reservationIds)}>Удалить</button>
