@@ -5,6 +5,7 @@ import styles from './styles.css';
 import { tables, timeslots } from './data';
 import { Form, Button, Collapse } from 'react-bootstrap';
 import Modal from 'react-bootstrap/Modal';
+import ReservationTable from './components/ReservationTables';
 
 const API_BASE_URL = '/api';
 
@@ -118,43 +119,60 @@ const App = () => {
   const handleSelectTimeslot = (timeslot) => {
     console.log(timeslot);
     console.log(selectedTimeslots);
+    const diffTable = (timeslot) => selectedTimeslots.every((slot) => timeslot.table_id === slot.table_id);
     const isSlotOccupied = occupiedSlots.some(
       (occupiedSlot) =>
         occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
         occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
     );
-
+    console.log('diffTable', diffTable(timeslot))
+    if (!diffTable(timeslot)) {
+      setSelectedTimeslots([timeslot]); 
+    }
     if (isSlotOccupied) {
       return;
     }
     const rateTimeFlags = [13, 14, 15];
-      const isTimeslotInRateTime = rateTimeFlags.some(value => timeslot.start_time.includes(value))
-      const hasSelectedTime = selectedTimeslots.some(slot => {
-        const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
-        return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
-      });
-      // если время выбранных таймслотов с 13 до 16, то нельзя вырать время позже
-      if (hasSelectedTime && !isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
-        console.log('ratetime', dayOfWeek)
+    const isTimeslotInRateTime = rateTimeFlags.some((value) =>
+      timeslot.start_time.includes(value)
+    );
+    const hasSelectedTime = selectedTimeslots.some((slot) => {
+      const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
+      return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
+    });
+    // если время выбранных таймслотов с 13 до 16, то нельзя выбрать время позже
+    if (hasSelectedTime && !isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
+      console.log('ratetime', dayOfWeek);
       return;
     }
-    if (selectedTimeslots.length > 0 && !hasSelectedTime && isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
-      console.log('hourpaytime')
-    return;
-  }
+    if (
+      selectedTimeslots.length > 0 &&
+      !hasSelectedTime &&
+      isTimeslotInRateTime &&
+      isWorkDay(dayOfWeek)
+    ) {
+      console.log('hourpaytime');
+      return;
+    }
     if (selectedTimeslots.includes(timeslot)) {
       setSelectedTimeslots((prevTimeslots) => {
-        if(isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))){
-          return prevTimeslots.filter((slot) => slot.id !== timeslot.id)
+        if (isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))) {
+          return prevTimeslots.filter((slot) => slot.id !== timeslot.id);
         }
-       return addMissingObjects([...prevTimeslots.filter((slot) => slot.id !== timeslot.id), timeslot]); 
-       // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
+        return addMissingObjects([
+          ...prevTimeslots.filter((slot) => slot.id !== timeslot.id),
+          timeslot,
+        ]);
+        // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
       });
+
+      //    if (selectedTimeslots.includes(timeslot)) {
+      //   setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id !== timeslot.id));
     } else {
-     
       setSelectedTimeslots((prevTimeslots) => {
-        if(isRange([...prevTimeslots, timeslot])){ // если слоты не идут по порядку, и есть пропуски то добавляем пропущеные слоты.
-          return [...prevTimeslots, timeslot]
+        if (isRange([...prevTimeslots, timeslot])) {
+          // если слоты не идут по порядку, и есть пропуски то добавляем пропущеные слоты.
+          return [...prevTimeslots, timeslot];
         }
         return addMissingObjects([...prevTimeslots, timeslot]);
       });
@@ -197,7 +215,6 @@ const App = () => {
           setSelectedTimeslots([]);
           setName('');
           setPhone('');
-          setEmail('');
           setComment('');
           setPaymentMethod('');
           loadOccupiedSlots();
@@ -259,7 +276,17 @@ const App = () => {
        const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
         return hasInReserv && reservation.confirmed === "1";
       })
+  const isTimeSlotRateTimeBook = (timeslot, rateTimeFlags = [13, 14, 15]) => {
+    const isTimeslotInRateTime = rateTimeFlags.some(value => timeslot.start_time.includes(value))
+    const hasSelectedTime = selectedTimeslots.some(slot => {
+      const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
+      return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
+    });
+    console.log(hasSelectedTime && isTimeslotInRateTime)
+    return hasSelectedTime && isTimeslotInRateTime;
+  }
 
+      
   const handleInputChange = (event) => {
     const { name, value } = event.target;
     switch (name) {
@@ -414,7 +441,7 @@ const App = () => {
   return (
     <div className="container">
       <Calendar onChange={handleDateChange} value={selectedDate} className="mx-auto m-3"/>
-
+      <ReservationTable/>
       <h2  className="text-center m-2">Выберите дату, стол и время бронирования</h2>
       {!loading ? (
         <div className="row">
@@ -456,7 +483,7 @@ const App = () => {
                                       .map((timeslot) => (
                                           <li
                                           key={timeslot.id}
-                                          className={`list-group-item text-center ${
+                                          className={`list-group-item cursor-pointer ${isTimeSlotRateTimeBook(timeslot) ? 'list-group-item-primary' : ''} text-center ${
                                               isTimeslotSelected(timeslot) ? 'active' : ''
                                           } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
                                           onClick={() => handleSelectTimeslot(timeslot)}
@@ -516,7 +543,7 @@ const App = () => {
               required
             />
           </div>
-          <div className="form-group mb-2">
+          {/* <div className="form-group mb-2">
             <label htmlFor="email">E-mail</label>
             <input
               type="email"
@@ -527,7 +554,7 @@ const App = () => {
               onChange={handleInputChange}
               required
             />
-          </div>
+          </div> */}
           <div className="form-group mb-2">
             <label htmlFor="comment">Комментарий</label>
             <textarea
@@ -547,7 +574,6 @@ const App = () => {
               name="payment_method"
               value={paymentMethod}
               onChange={handleInputChange}
-              required
             >
               <option value="">Способ оплаты</option>
               <option value="card">Банковской картой в зале</option>
