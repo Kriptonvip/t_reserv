@@ -9,6 +9,15 @@ import ReservationTable from './components/ReservationTables';
 
 const API_BASE_URL = '/api';
 
+const limitHours = {
+  Mon: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
+  Tue: {kidsTime: ['10', '11', '15', '16'], limit: []},
+  Wed: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
+  Thu: {kidsTime: ['10', '11', '15', '16'], limit: ['19', '20', '21'] },
+  Fri: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
+  Sat: {kidsTime:[], limit: ['10', '11','12', '13']},
+  Sun: {kidsTime:[], limit: []},
+}
 const App = () => {
   const [occupiedSlots, setOccupiedSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -22,13 +31,15 @@ const App = () => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [dayOfWeek, setWeekDay] = useState(selectedDate.getDay());
+  const [dayOfWeek, setWeekDay] = useState(selectedDate.toDateString().split(' ')[0]);
   const [weekdays, setWeekdays] = useState({
-    monday: false,
-    wednesday: false,
-    thursday: false,
-    saturday: false,
-    friday: false,
+    Mon: false,
+    Tue: false,
+    Wed: false,
+    Thu: false,
+    Fri: false,
+    Sat: false,
+    Sun: false,
   });
   const [skipInitial, setSkipInitial] = useState(true);
   const [open, setOpen] = useState({});
@@ -73,7 +84,7 @@ const App = () => {
     const originalDate = new Date(date);
     const GMT3Date = new Date(originalDate.getTime() + 3 * 60 * 60 * 1000);
     setSelectedDate(GMT3Date);
-    setWeekDay(GMT3Date.getDay());
+    setWeekDay(GMT3Date.toDateString().split(' ')[0]);
     setSelectedTimeslots([]);
   };
 
@@ -282,7 +293,7 @@ const App = () => {
       const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
       return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
     });
-    console.log(hasSelectedTime && isTimeslotInRateTime)
+    console.log('hasSelectedTime && isTimeslotInRateTime', hasSelectedTime && isTimeslotInRateTime)
     return hasSelectedTime && isTimeslotInRateTime;
   }
 
@@ -348,9 +359,11 @@ const App = () => {
       ...prevWeekdays,
       [weekday]: !prevWeekdays[weekday],
     }));
+   
   };
   // useEffect для handleSaveWeekdays
   const handleSaveWeekdays = async () => {
+    console.log('weekdays', weekdays);
     try {
       const response = await fetch(`${API_BASE_URL}/weekdays/`, {
         method: 'POST',
@@ -361,6 +374,7 @@ const App = () => {
       });
 
       if (response.ok) {
+        console.log('Success');
         // Состояние сохранено успешно
       } else {
         // Обработка ошибки сохранения состояния
@@ -468,20 +482,11 @@ const App = () => {
                                   {timeslots
                                       .filter((timeslot) => timeslot.table_id === table.id)
                                       .filter((timeslot) => {
-                                          let originalDate = new Date(selectedDate);
                                           let comparisonDate = new Date();
-                                          const [hours, minutes] = timeslot.start_time.split(':');
-                                          let newDate = new Date(originalDate);
-                                          console.log(timeslot)
-                                          newDate.setHours(hours, minutes);
-                                          const childrenClassesMonWedFri = (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) && (hours >= 10 && hours < 13)
-                                          const childrenClassesTueThu = (dayOfWeek === 2 || dayOfWeek === 4) && ((hours >= 15 && hours <= 16) || (hours >= 10 && hours < 12));
-                                          const mon = dayOfWeek === 1 && weekdays.monday && (hours >= 19);
-                                          const wed = dayOfWeek === 3 && weekdays.wednesday && (hours >= 19);
-                                          const thu = dayOfWeek === 4 && weekdays.thursday && (hours >= 19);
-                                          const sat = dayOfWeek === 6 && weekdays.saturday && (hours >= 10 && hours <= 13);
-                                          const fri = dayOfWeek === 5 && weekdays.friday && (hours >= 19);
-                                          return newDate > comparisonDate && !childrenClassesMonWedFri && !childrenClassesTueThu && !mon && !wed && !thu && !sat && !fri;
+                                          const hour = timeslot.start_time.split(':')[0];
+                                          const limit = !(weekdays[dayOfWeek] && limitHours[dayOfWeek].limit.includes(hour));
+                                          const kidsTime = !limitHours[dayOfWeek].kidsTime.includes(hour);
+                                          return selectedDate > comparisonDate && limit && kidsTime
                                       })
                                       .map((timeslot) => (
                                           <li
@@ -577,47 +582,47 @@ const App = () => {
           </form>
           </Modal.Body>
        </Modal>
-    {!window.isUserLoggedIn ? null : 
+    {window.isUserLoggedIn ? null : 
     ( <>
       <h2>Управление бронированиями</h2>
       <Form.Check
             type="switch"
             id="monladder-switch"
-            label={weekdays.monday ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
-            checked={weekdays.monday}
-            onChange={() => handleToggleWeekday('monday')}
+            label={weekdays.Mon ? 'Доступность бронирования на вечер понедельника отменена' : 'Доступность бронирования на вечер понедельника включена'}
+            checked={weekdays.Mon}
+            onChange={() => handleToggleWeekday('Mon')}
           />
 
           <Form.Check
             type="switch"
             id="wedladder-switch"
-            label={weekdays.wednesday ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
-            checked={weekdays.wednesday}
-            onChange={() => handleToggleWeekday('wednesday')}
+            label={weekdays.Wed ? 'Доступность бронирования на вечер среды отменена' : 'Доступность бронирования на вечер среды включена'}
+            checked={weekdays.Wed}
+            onChange={() => handleToggleWeekday('Wed')}
           />
 
           <Form.Check
             type="switch"
             id="thuT-switch"
-            label={weekdays.thursday ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
-            checked={weekdays.thursday}
-            onChange={() => handleToggleWeekday('thursday')}
+            label={weekdays.Thu ? 'Доступность бронирования на вечер четверга отменена' : 'Доступность бронирования на вечер четверга включена'}
+            checked={weekdays.Thu}
+            onChange={() => handleToggleWeekday('Thu')}
           />
 
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={weekdays.friday ? 'Доступность бронирования на вечер пятницы отменена' : 'Доступность бронирования на вечер пятницы включена'}
-            checked={weekdays.friday}
-            onChange={() => handleToggleWeekday('friday')}
+            label={weekdays.Fri ? 'Доступность бронирования на вечер пятницы отменена' : 'Доступность бронирования на вечер пятницы включена'}
+            checked={weekdays.Fri}
+            onChange={() => handleToggleWeekday('Fri')}
           />
 
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={weekdays.saturday ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
-            checked={weekdays.saturday}
-            onChange={() => handleToggleWeekday('saturday')}
+            label={weekdays.Sat ? 'Доступность бронирования на день субботы отменена' : 'Доступность бронирования на день субботы включена'}
+            checked={weekdays.Sat}
+            onChange={() => handleToggleWeekday('Sat')}
           />
       
       <div className="row">
