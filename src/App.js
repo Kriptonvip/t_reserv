@@ -10,13 +10,13 @@ import ReservationTable from './components/ReservationTables';
 const API_BASE_URL = '/api';
 
 const limitHours = {
-  Mon: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
-  Tue: {kidsTime: ['10', '11', '15', '16'], limit: []},
-  Wed: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
-  Thu: {kidsTime: ['10', '11', '15', '16'], limit: ['19', '20', '21'] },
-  Fri: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21']},
-  Sat: {kidsTime:[], limit: ['10', '11','12', '13']},
-  Sun: {kidsTime:[], limit: []},
+  Mon: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+  Tue: {kidsTime: ['10', '11', '15', '16'], limit: [], saleTimes:['12','13','14']},
+  Wed: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+  Thu: {kidsTime: ['10', '11', '15', '16'], limit: ['19', '20', '21'], saleTimes:['12','13','14'] },
+  Fri: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+  Sat: {kidsTime:[], limit: ['10', '11','12', '13'], saleTimes:[]},
+  Sun: {kidsTime:[], limit: [], saleTimes:[]},
 }
 const App = () => {
   const [occupiedSlots, setOccupiedSlots] = useState([]);
@@ -143,7 +143,7 @@ const App = () => {
     if (isSlotOccupied) {
       return;
     }
-    const rateTimeFlags = [13, 14, 15];
+    const rateTimeFlags = limitHours[dayOfWeek].saleTimes;
     const isTimeslotInRateTime = rateTimeFlags.some((value) =>
       timeslot.start_time.includes(value)
     );
@@ -287,16 +287,6 @@ const App = () => {
        const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
         return hasInReserv && reservation.confirmed === "1";
       })
-  const isTimeSlotRateTimeBook = (timeslot, rateTimeFlags = [13, 14, 15]) => {
-    const isTimeslotInRateTime = rateTimeFlags.some(value => timeslot.start_time.includes(value))
-    const hasSelectedTime = selectedTimeslots.some(slot => {
-      const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
-      return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
-    });
-    console.log('hasSelectedTime && isTimeslotInRateTime', hasSelectedTime && isTimeslotInRateTime)
-    return hasSelectedTime && isTimeslotInRateTime;
-  }
-
       
   const handleInputChange = (event) => {
     const { name, value } = event.target;
@@ -426,9 +416,11 @@ const App = () => {
     const [endH, endM] = endTimeSlot.split(':');
     const startTime = new Date(0, 0, 0, startH, startM); // 13:00
     const endTime = new Date(0, 0, 0, endH, endM); // 16:30
-
-    const weekdayRateStartTime = 13; // Начальное время с рабочей ставкой
-    const weekdayRateEndTime = 16; // Конечное время с рабочей ставкой
+    const saleTimeStart = limitHours[dayOfWeek].saleTimes[0];
+    const saleTimeEnd = limitHours[dayOfWeek].saleTimes[2];
+    
+    const weekdayRateStartTime = Number(saleTimeStart); // Начальное время с рабочей ставкой
+    const weekdayRateEndTime = Number(saleTimeEnd); // Конечное время с рабочей ставкой
     const weekdayRate = 200; // Стоимость аренды в рабочие часы
   
     const hourlyRate = 400; // Стоимость аренды за час в остальное время
@@ -488,10 +480,14 @@ const App = () => {
                                           const kidsTime = !limitHours[dayOfWeek].kidsTime.includes(hour);
                                           return selectedDate > comparisonDate && limit && kidsTime
                                       })
-                                      .map((timeslot) => (
-                                          <li
+                                      .map((timeslot) => {
+                                        const hour = timeslot.start_time.split(':')[0];
+                                        timeslot.saleRate = limitHours[dayOfWeek].saleTimes.includes(hour);
+                                         
+                                        return (
+                                        <li
                                           key={timeslot.id}
-                                          className={`list-group-item cursor-pointer ${isTimeSlotRateTimeBook(timeslot) ? 'list-group-item-primary' : ''} text-center ${
+                                          className={`list-group-item cursor-pointer ${timeslot.saleRate ? 'list-group-item-primary' : ''} text-center ${
                                               isTimeslotSelected(timeslot) ? 'active' : ''
                                           } ${isSlotOccupied(timeslot) ? 'list-group-item-dark' : ''}`}
                                           onClick={() => handleSelectTimeslot(timeslot)}
@@ -499,7 +495,8 @@ const App = () => {
                                           {timeslot.start_time.substring(0, timeslot.start_time.lastIndexOf(':'))} - {timeslot.end_time.substring(0, timeslot.end_time.lastIndexOf(':'))}
                                           {isSlotOccupied(timeslot) ? ` бронь ${isSlotConfirmed(timeslot) ? '(подтверждена)' : '(отправлена)'}` : ' Свободно'}
                                           </li>
-                                      ))}
+                                      )}
+                                  )}
                               </ul>
                           </div>
                       </Collapse>
