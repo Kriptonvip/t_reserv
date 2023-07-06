@@ -154,20 +154,20 @@ const App = () => {
       console.log('hourpaytime');
       return;
     }
-    if (selectedTimeslots.includes(timeslot)) {
-      setSelectedTimeslots((prevTimeslots) => {
-        if (isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))) {
-          return prevTimeslots.filter((slot) => slot.id !== timeslot.id);
-        }
-        return addMissingObjects([
-          ...prevTimeslots.filter((slot) => slot.id !== timeslot.id),
-          timeslot,
-        ]);
-        // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
-      });
+    // if (selectedTimeslots.includes(timeslot)) {
+    //   setSelectedTimeslots((prevTimeslots) => {
+    //     if (isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))) {
+    //       return prevTimeslots.filter((slot) => slot.id !== timeslot.id);
+    //     }
+    //     return addMissingObjects([
+    //       ...prevTimeslots.filter((slot) => slot.id !== timeslot.id),
+    //       timeslot,
+    //     ]);
+    //     // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
+    //   });
 
-      //    if (selectedTimeslots.includes(timeslot)) {
-      //   setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id !== timeslot.id));
+         if (selectedTimeslots.includes(timeslot)) {
+        setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id !== timeslot.id));
     } else {
       setSelectedTimeslots((prevTimeslots) => {
         if (isRange([...prevTimeslots, timeslot])) {
@@ -435,14 +435,15 @@ const App = () => {
     return hourlyRate * duration + ' рублей';
   }
 
-  const [stT, andT] = getOverallTime(selectedTimeslots)
+  const [stT, endT] = getOverallTime(selectedTimeslots)
 
 
   return (
     <div className="container">
-      <Calendar onChange={handleDateChange} value={selectedDate} className="mx-auto m-3"/>
       <ReservationTable/>
       <h2  className="text-center m-2">Выберите дату, стол и время бронирования</h2>
+      <Calendar onChange={handleDateChange} value={selectedDate} className="mx-auto m-3"/>
+      
       {!loading ? (
         <div className="row">
           {tables.map((table) => (
@@ -471,14 +472,16 @@ const App = () => {
                                           let comparisonDate = new Date();
                                           const [hours, minutes] = timeslot.start_time.split(':');
                                           let newDate = new Date(originalDate);
+                                          console.log(timeslot)
                                           newDate.setHours(hours, minutes);
-                                          const childrenClasses = !(isWorkDay(dayOfWeek) && (hours >= 10 && hours < 13))
+                                          const childrenClassesMonWedFri = (dayOfWeek === 1 || dayOfWeek === 3 || dayOfWeek === 5) && (hours >= 10 && hours < 13)
+                                          const childrenClassesTueThu = (dayOfWeek === 2 || dayOfWeek === 4) && ((hours >= 15 && hours <= 16) || (hours >= 10 && hours < 12));
                                           const mon = dayOfWeek === 1 && weekdays.monday && (hours >= 19);
                                           const wed = dayOfWeek === 3 && weekdays.wednesday && (hours >= 19);
                                           const thu = dayOfWeek === 4 && weekdays.thursday && (hours >= 19);
                                           const sat = dayOfWeek === 6 && weekdays.saturday && (hours >= 10 && hours <= 13);
                                           const fri = dayOfWeek === 5 && weekdays.friday && (hours >= 19);
-                                          return newDate > comparisonDate && childrenClasses && !mon && !wed && !thu && !sat && !fri;
+                                          return newDate > comparisonDate && !childrenClassesMonWedFri && !childrenClassesTueThu && !mon && !wed && !thu && !sat && !fri;
                                       })
                                       .map((timeslot) => (
                                           <li
@@ -508,7 +511,7 @@ const App = () => {
         className='m-3 position-sticky fixed-bottom d-block w-50 mx-auto'
         onClick={handleShow}
       >
-        Забронировать (Цена: {calculateTableRentCost(stT, andT, selectedDate.getDay())})
+        Забронировать (Цена: {calculateTableRentCost(stT, endT, selectedDate.getDay())})
       </Button>
 
 
@@ -543,18 +546,6 @@ const App = () => {
               required
             />
           </div>
-          {/* <div className="form-group mb-2">
-            <label htmlFor="email">E-mail</label>
-            <input
-              type="email"
-              className="form-control"
-              id="email"
-              name="email"
-              value={email}
-              onChange={handleInputChange}
-              required
-            />
-          </div> */}
           <div className="form-group mb-2">
             <label htmlFor="comment">Комментарий</label>
             <textarea
@@ -581,12 +572,12 @@ const App = () => {
             </select>
           </div>
           <button type="submit" className="btn btn-primary mt-2 d-block mx-auto">
-          Забронировать (Цена: {calculateTableRentCost(stT, andT, selectedDate.getDay())})
+          Забронировать (Цена: {calculateTableRentCost(stT, endT, selectedDate.getDay())})
           </button>
           </form>
           </Modal.Body>
        </Modal>
-    {!!window.isUserLoggedIn ? null : 
+    {!window.isUserLoggedIn ? null : 
     ( <>
       <h2>Управление бронированиями</h2>
       <Form.Check
