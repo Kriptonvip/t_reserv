@@ -19,7 +19,6 @@ const limitHours = {
   Sun: {kidsTime:[], limit: [], saleTimes:[]},
 }
 const App = () => {
-  const [occupiedSlots, setOccupiedSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedTimeslots, setSelectedTimeslots] = useState([]);
@@ -41,6 +40,8 @@ const App = () => {
     Sat: false,
     Sun: false,
   });
+  const [price, setPrice] = useState(0); 
+  const [hasSaleRate, setHasSaleRate] = useState(false);
   const [skipInitial, setSkipInitial] = useState(true);
   const [open, setOpen] = useState({});
   const [show, setShow] = useState(false);
@@ -53,32 +54,25 @@ const App = () => {
       [id]: !prevOpen[id],
     }));
   };
-  const loadOccupiedSlots = async () => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/reservations/occupied_slots.php`);
-      const occupiedSlotsData = await response.json();
-      setOccupiedSlots(occupiedSlotsData);
-      setLoading(false);
-    } catch (error) {
-      setError(error.toString());
-    }
-  };
+  
   const loadReservations = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/reservations/all_reservations.php`);
       const reservationsData = await response.json();
-      setReservations(reservationsData);
+      // console.log('reservationsData', reservationsData);
+      setReservations(reservationsData);      
+      
     } catch (error) {
       setError(error.toString());
     }
   };
-  const isWorkDay = (day) => day >= 1 && day <= 5;
+
+
   useEffect(() => {
-    loadOccupiedSlots();
     loadReservations();
     handleLoadWeekdays();
+    setLoading(false);
   }, []);
-
 
   const handleDateChange = (date) => {
     const originalDate = new Date(date);
@@ -126,59 +120,29 @@ const App = () => {
   
     return newArray;
   }
-
+  const isSlotOccupied = (timeslot) => reservations.some(
+    (reservation) =>
+      reservation.date === selectedDate.toISOString().split('T')[0] &&
+      reservation.timeslots.some((reservTimeslot) => reservTimeslot.id === timeslot.id.toString()))
+    
   const handleSelectTimeslot = (timeslot) => {
-    console.log(timeslot);
-    console.log(selectedTimeslots);
+    console.log('handleSelectTimeslot', timeslot);
+    console.log('handleSelectTimeslot', selectedTimeslots);
+    console.log('hasSaleRate', hasSaleRate);
+    if(!hasSaleRate && timeslot.saleRate) {
+      setHasSaleRate(true);
+    }
     const diffTable = (timeslot) => selectedTimeslots.every((slot) => timeslot.table_id === slot.table_id);
-    const isSlotOccupied = occupiedSlots.some(
-      (occupiedSlot) =>
-        occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
-        occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
-    );
-    console.log('diffTable', diffTable(timeslot))
+    
     if (!diffTable(timeslot)) {
       setSelectedTimeslots([timeslot]); 
     }
-    if (isSlotOccupied) {
+    if (isSlotOccupied(timeslot)) {
       return;
     }
-    const rateTimeFlags = limitHours[dayOfWeek].saleTimes;
-    const isTimeslotInRateTime = rateTimeFlags.some((value) =>
-      timeslot.start_time.includes(value)
-    );
-    const hasSelectedTime = selectedTimeslots.some((slot) => {
-      const startTime = parseInt(slot.start_time.split(':')[0]); // Получаем часы начала как целое число
-      return rateTimeFlags.includes(startTime); // Проверяем, присутствует ли startTime в массиве timeFlags
-    });
-    // если время выбранных таймслотов с 13 до 16, то нельзя выбрать время позже
-    if (hasSelectedTime && !isTimeslotInRateTime && isWorkDay(dayOfWeek)) {
-      console.log('ratetime', dayOfWeek);
-      return;
-    }
-    if (
-      selectedTimeslots.length > 0 &&
-      !hasSelectedTime &&
-      isTimeslotInRateTime &&
-      isWorkDay(dayOfWeek)
-    ) {
-      console.log('hourpaytime');
-      return;
-    }
-    // if (selectedTimeslots.includes(timeslot)) {
-    //   setSelectedTimeslots((prevTimeslots) => {
-    //     if (isRange(prevTimeslots.filter((slot) => slot.id !== timeslot.id))) {
-    //       return prevTimeslots.filter((slot) => slot.id !== timeslot.id);
-    //     }
-    //     return addMissingObjects([
-    //       ...prevTimeslots.filter((slot) => slot.id !== timeslot.id),
-    //       timeslot,
-    //     ]);
-    //     // если удаление слота делает массив выьранных солотов не упорядоченным диапазоном, то слот не удаляется, удалять слоты можно только с края всего промежутка времени.
-    //   });
 
          if (selectedTimeslots.includes(timeslot)) {
-        setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id !== timeslot.id));
+        setSelectedTimeslots((prevTimeslots) => prevTimeslots.filter((slot) => slot.id < timeslot.id));
     } else {
       setSelectedTimeslots((prevTimeslots) => {
         if (isRange([...prevTimeslots, timeslot])) {
@@ -190,62 +154,57 @@ const App = () => {
     }
   };
 
-  const handleSubmit = (event) => {
+   const handleSubmit = (event) => {
     event.preventDefault();
     handleClose();
     if (!selectedTimeslots.length || !selectedDate || !selectedTable) {
       alert('Пожалуйста, выберите стол, дату и время бронирования');
       return;
     }
-
-    const reservationPromises = selectedTimeslots.map((timeslot) => {
-      const reservation = {
-        name,
-        phone,
-        email,
-        comment,
-        payment_method: paymentMethod,
-        timeslot_id: timeslot.id,
-        table_id: selectedTable.id,
-        date: selectedDate.toISOString().split('T')[0],
-      };
-
-      return fetch(`${API_BASE_URL}/reservations/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reservation),
-      }).then((response) => response.json());
-    });
-
-    Promise.all(reservationPromises)
-      .then((responses) => {
-        if (responses.every((response) => response.status === 'success')) {
+  
+    const reservation = {
+      name,
+      phone,
+      email,
+      comment,
+      timeslot_ids: selectedTimeslots.map((timeslot) => timeslot.id),
+      total_price: calculateTotalPrice(selectedTimeslots),
+      date: selectedDate.toISOString().split('T')[0],
+      confirmed: false,
+    };
+  
+    fetch(`${API_BASE_URL}/reservations/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(reservation),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.status === 'success') {
           setSelectedTable(null);
           setSelectedTimeslots([]);
           setName('');
           setPhone('');
           setComment('');
           setPaymentMethod('');
-          loadOccupiedSlots();
-          alert('Все бронирования успешно созданы!');
+          alert('Бронирование успешно создано!');
           loadReservations();
         } else {
           alert('Произошла ошибка при создании бронирования');
         }
       });
   };
-
+  
   const deleteReservations = (reservationIds) => {
     reservationIds.forEach((reservationId) => {
-      fetch(`${API_BASE_URL}/reservations/deleted_reservations.php?id=${reservationId}`, {
+      fetch(`${API_BASE_URL}/reservations/delete_reservation.php?id=${reservationId}`, {
         method: 'DELETE',
       })
         .then((response) => response.json())
         .then((data) => {
           if (data.status === 'success') {
-            loadOccupiedSlots();
             loadReservations();
           } else {
             alert('Произошла ошибка при удалении бронирования');
@@ -256,13 +215,12 @@ const App = () => {
   
   const confirmReservations = (reservationIds) => {
     reservationIds.forEach((reservationId) => {
-      fetch(`${API_BASE_URL}/reservations/confirmed_reservations.php?id=${reservationId}`, {
+      fetch(`${API_BASE_URL}/reservations/confirm_reservation.php?id=${reservationId}`, {
         method: 'PUT',
       })
         .then((response) => response.json())
         .then((data) => {
           if (data.status === 'success') {
-            loadOccupiedSlots();
             loadReservations();
           } else {
             alert('Произошла ошибка при подтверждении бронирования');
@@ -275,16 +233,10 @@ const App = () => {
 
   const isTimeslotSelected = (timeslot) =>
     selectedTimeslots.some((selectedSlot) => selectedSlot.id === timeslot.id);
-
-  const isSlotOccupied = (timeslot) =>
-    occupiedSlots.some(
-      (occupiedSlot) =>
-        occupiedSlot.date === selectedDate.toISOString().split('T')[0] &&
-        occupiedSlot.occupied_slots.split(',').includes(timeslot.id.toString())
-    );
+    
     const isSlotConfirmed = (timeslot) => reservations.some(
       (reservation) => {
-       const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
+      const hasInReserv = reservation.timeslots.some((slot) => slot.id === `${timeslot.id}`);
         return hasInReserv && reservation.confirmed === "1";
       })
       
@@ -311,37 +263,8 @@ const App = () => {
     }
   };
 
-  const groupedReservations = reservations.reduce((acc, reservation) => {
-    const { date, timeslots, confirmed, id, name, phone, comment } = reservation;
-    if (!acc[date]) {
-      acc[date] = [];
-    }
-    // Добавление информации о столе, времени начала и окончания в каждое бронирование
-    const formattedTimeslots = timeslots.map((timeslot) => ({
-      id,
-      table_id: timeslot.table_id,
-      start_time: timeslot.start_time,
-      end_time: timeslot.end_time,
-      confirmed,
-      name,
-      phone, 
-      comment
-    }));
-    acc[date] = acc[date].concat(formattedTimeslots);
-    return acc;
-  }, {});
-  
-  // Сортировка столов по возрастанию номера стола и времени начала
-  for (const date in groupedReservations) {
-    groupedReservations[date].sort((a, b) => {
-      if (a.table_id !== b.table_id) {
-        return a.table_id - b.table_id;
-      }
-      return a.start_time.localeCompare(b.start_time);
-    });
-  }
 
- 
+  // Сортировка столов по возрастанию номера стола и времени начала 
 
   const handleToggleWeekday = (weekday) => {
     setSkipInitial(false); // Устанавливаем skipInitial в false после первой инициализации
@@ -382,6 +305,31 @@ const App = () => {
     handleSaveWeekdays();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [weekdays]);
+
+  const calculateTotalPrice = (timeSlots) => {
+    if(timeSlots.length === 0) {
+      setHasSaleRate(false);
+      return 0;
+    }
+    let totalPrice = hasSaleRate ? 200 : 0;
+    
+    timeSlots.forEach((timeSlot) => {
+      if (!timeSlot.saleRate) {
+        totalPrice += 200;
+      }
+    });
+  
+    return totalPrice;
+  };
+
+  useEffect(() => {
+    
+    setPrice(() => {
+      return calculateTotalPrice(selectedTimeslots)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTimeslots]);
+  
   
 
   const handleLoadWeekdays = async () => {
@@ -390,7 +338,7 @@ const App = () => {
       const weekdaysData = await response.json();
       setWeekdays(weekdaysData);
     } catch (error) {
-      // Обработка ошибки запроса
+      // Обработка ошибки запроса 
     }
   };
 
@@ -408,42 +356,7 @@ const App = () => {
     return [startTime, endTime];
   }
   
-  function calculateTableRentCost(startTimeSlot, endTimeSlot, reservDayOfWeek) {
-    if(startTimeSlot === undefined && endTimeSlot === undefined) {
-      return '0 рублей';
-    }
-    const [startH, startM] = startTimeSlot.split(':');
-    const [endH, endM] = endTimeSlot.split(':');
-    const startTime = new Date(0, 0, 0, startH, startM); // 13:00
-    const endTime = new Date(0, 0, 0, endH, endM); // 16:30
-    const saleTimeStart = limitHours[dayOfWeek].saleTimes[0];
-    const saleTimeEnd = limitHours[dayOfWeek].saleTimes[2];
-    
-    const weekdayRateStartTime = Number(saleTimeStart); // Начальное время с рабочей ставкой
-    const weekdayRateEndTime = Number(saleTimeEnd); // Конечное время с рабочей ставкой
-    const weekdayRate = 200; // Стоимость аренды в рабочие часы
-  
-    const hourlyRate = 400; // Стоимость аренды за час в остальное время
-  
-    // Вычисляем количество часов бронирования
-    const duration = (endTime - startTime) / (60 * 60 * 1000); // Предполагается, что startTime и endTime представляют себя время в миллисекундах
-  
-    // Проверяем, попадает ли время бронирования в рабочие часы
-    if (
-      startTime.getHours() >= weekdayRateStartTime &&
-      (endTime.getHours() < weekdayRateEndTime || (endTime.getHours() === weekdayRateEndTime && endTime.getMinutes() === 0)) &&
-      isWorkDay(reservDayOfWeek)
-    ) {
-      return weekdayRate + ' рублей c человека';
-    }
-  
-    // В остальных случаях возвращаем стоимость аренды за час, умноженную на количество часов бронирования
-    return hourlyRate * duration + ' рублей';
-  }
-
-  const [stT, endT] = getOverallTime(selectedTimeslots)
-
-
+  console.log('reservations', reservations)
   return (
     <div className="container">
       <ReservationTable/>
@@ -474,16 +387,17 @@ const App = () => {
                                   {timeslots
                                       .filter((timeslot) => timeslot.table_id === table.id)
                                       .filter((timeslot) => {
-                                          let comparisonDate = new Date();
-                                          const hour = timeslot.start_time.split(':')[0];
+                                          const comparisonDate = new Date();
+                                          const newDate = new Date(selectedDate);
+                                          const [hour, minutes] = timeslot.start_time.split(':');
+                                          newDate.setHours(hour, minutes);
                                           const limit = !(weekdays[dayOfWeek] && limitHours[dayOfWeek].limit.includes(hour));
                                           const kidsTime = !limitHours[dayOfWeek].kidsTime.includes(hour);
-                                          return selectedDate > comparisonDate && limit && kidsTime
+                                          return newDate > comparisonDate && limit && kidsTime
                                       })
                                       .map((timeslot) => {
                                         const hour = timeslot.start_time.split(':')[0];
                                         timeslot.saleRate = limitHours[dayOfWeek].saleTimes.includes(hour);
-                                         
                                         return (
                                         <li
                                           key={timeslot.id}
@@ -513,7 +427,7 @@ const App = () => {
         className='m-3 position-sticky fixed-bottom d-block w-50 mx-auto'
         onClick={handleShow}
       >
-        Забронировать (Цена: {calculateTableRentCost(stT, endT, selectedDate.getDay())})
+        Забронировать (Стоимость: {price} рублей)
       </Button>
 
 
@@ -574,7 +488,7 @@ const App = () => {
             </select>
           </div>
           <button type="submit" className="btn btn-primary mt-2 d-block mx-auto">
-          Забронировать (Цена: {calculateTableRentCost(stT, endT, selectedDate.getDay())})
+          Забронировать (Стоимость: {price} рублей)
           </button>
           </form>
           </Modal.Body>
@@ -623,58 +537,43 @@ const App = () => {
           />
       
       <div className="row">
-      {Object.keys(groupedReservations).sort().map((date) => (
-        <div className="col-sm-6 col-md-6" key={date}>
-          <p>Бронирование на дату: {date}</p>
+      {reservations.map((reservation) => (
+        <div className="col-sm-6 col-md-6" key={reservation.id}>
+          <p>Бронирование на дату: {reservation.date}</p>
           <ul className="list-group">
-            {groupedReservations[date].reduce((acc, reservation) => {
-              const { id, start_time, end_time, table_id, name, phone, comment } = reservation;
-              const confirmed = reservation.confirmed;
-              const lastReservation = acc[acc.length - 1];
-
-              if (lastReservation && lastReservation.phone === phone && lastReservation.end_time === start_time) {
-                // Смежные таймслоты, забронированные одним человеком
-                lastReservation.end_time = end_time;
-                lastReservation.reservationIds.push(id);
-              } else {
-                // Новый таймслот
-                acc.push({
-                  id,
-                  start_time,
-                  end_time,
-                  table_id,
-                  name,
-                  phone,
-                  comment,
-                  confirmed,
-                  reservationIds: [id], // Создаем массив с одним элементом - текущим id резерва
-                });
-              }
-
-              return acc;
-            }, []).map((reservation) => {
-              const { id, start_time, end_time, table_id, name, phone, comment, confirmed, reservationIds } = reservation;
-              return (
-                <li className="list-group-item d-flex justify-content-between align-items-center" key={id}>
-                  <div>
-                    <p>Имя: {name}</p>
-                    <p>Телефон: {phone}</p>
-                    <p>Комментарий: {comment}</p>
-                    <p>Стол №{table_id} {start_time} - {end_time}</p>
-                    <p>Стоимость: {calculateTableRentCost(start_time,end_time, new Date(date).getDay())}</p>
-                  </div>
-                  <div>
-                    <button className="btn btn-danger m-2" onClick={() => deleteReservations(reservationIds)}>Удалить</button>
-                    {confirmed === "1" ? null : (
-                      <button className="btn btn-success" onClick={() => confirmReservations(reservationIds)}>Подтвердить</button>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+            <li className="list-group-item d-flex justify-content-between align-items-center">
+              <div>
+                <p>Имя: {reservation.name}</p>
+                <p>Телефон: {reservation.phone}</p>
+                <p>Комментарий: {reservation.comment}</p>
+                <p>
+                  Время: {reservation.timeslots[0].start_time} -{" "}
+                  {reservation.timeslots[reservation.timeslots.length - 1].end_time}
+                </p>
+                <p>Стоимость: {reservation.price} рублей</p>
+              </div>
+              <div>
+                <button
+                  className="btn btn-danger m-2"
+                  onClick={() => deleteReservations([reservation.id])}
+                >
+                  Удалить
+                </button>
+                {reservation.confirmed === "1" ? null : (
+                  <button
+                    className="btn btn-success"
+                    onClick={() => confirmReservations([reservation.id])}
+                  >
+                    Подтвердить
+                  </button>
+                )}
+              </div>
+            </li>
           </ul>
         </div>
       ))}
+
+
 
       </div>
       </>
