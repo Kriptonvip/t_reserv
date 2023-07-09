@@ -5,9 +5,19 @@ export const tables = [
     { id: 4, name: 'Стол 4' },
     { id: 5, name: 'Стол 5' },
   ];
+
+  export const limitHours = {
+    Mon: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Tue: {kidsTime: ['10', '11', '15', '16'], limit: [], saleTimes:['12','13','14']},
+    Wed: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Thu: {kidsTime: ['10', '11', '15', '16'], limit: ['19', '20', '21'], saleTimes:['12','13','14'] },
+    Fri: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Sat: {kidsTime:[], limit: ['10', '11','12', '13'], saleTimes:[]},
+    Sun: {kidsTime:[], limit: [], saleTimes:[]},
+  }
   
   export const timeslots = [
-    { id: 1, table_id: 1, start_time: '10:00:00', end_time: '10:30:00',  saleRate: false},
+    { id: 1, table_id: 1, start_time: '10:00:00', end_time: '10:30:00', saleRate: false},
     { id: 2, table_id: 1, start_time: '10:30:00', end_time: '11:00:00', saleRate: false},
     { id: 3, table_id: 1, start_time: '11:00:00', end_time: '11:30:00', saleRate: false},
     { id: 4, table_id: 1, start_time: '11:30:00', end_time: '12:00:00', saleRate: false},
