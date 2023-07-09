@@ -315,11 +315,13 @@ const App = () => {
       setHasSaleRate(false);
       return 0;
     }
-    let totalPrice = hasSaleRate ? 200 : 0;
+    let totalPrice = 0;
 
     timeSlots.forEach((timeSlot) => {
-      if (!timeSlot.saleRate) {
-        totalPrice += 200;
+      if (timeSlot.saleRate) {
+        totalPrice += 150;
+      } else {
+         totalPrice += 200;
       }
     });
 
@@ -513,7 +515,7 @@ const App = () => {
           </form>
         </Modal.Body>
       </Modal>
-      {window.isUserLoggedIn ? null : (
+      {!window.isUserLoggedIn ? null : (
         <>
           <h2>Управление бронированиями</h2>
           <Form.Check
