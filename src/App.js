@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Calendar from 'react-calendar';
+import { registerLocale } from 'date-fns';
+import ruLocale from 'date-fns/locale/ru';
 // eslint-disable-next-line no-unused-vars
 import styles from './styles.css';
 import { limitHours, tables, timeslots } from './data';
@@ -53,6 +55,7 @@ const App = () => {
         `${API_BASE_URL}/reservations/all_reservations.php`
       );
       const reservationsData = await response.json();
+      console.log(reservationsData)
       setReservations(reservationsData);
     } catch (error) {
       console.log(error);
@@ -71,6 +74,7 @@ const App = () => {
     setSelectedDate(GMT3Date);
     setWeekDay(GMT3Date.toDateString().split(' ')[0]);
     setSelectedTimeslots([]);
+    loadReservations();
   };
 
   const handleSelectTable = (table) => {
@@ -121,6 +125,7 @@ const App = () => {
     );
 
   const handleSelectTimeslot = (timeslot) => {
+    loadReservations();
     if (!hasSaleRate && timeslot.saleRate) {
       setHasSaleRate(true);
     }
@@ -133,7 +138,6 @@ const App = () => {
     if (isSlotOccupied(timeslot)) {
       return;
     }
-
     if (selectedTimeslots.includes(timeslot)) {
       setSelectedTimeslots((prevTimeslots) => {
         const updatedTimeslots = prevTimeslots.filter(
@@ -159,7 +163,7 @@ const App = () => {
       alert('Пожалуйста, выберите стол, дату и время бронирования');
       return;
     }
-
+    const sortedTimeslots = [...selectedTimeslots].sort((a, b) => a.id - b.id);
     const reservation = {
       name,
       phone,
@@ -170,9 +174,10 @@ const App = () => {
       date: selectedDate.toISOString().split('T')[0],
       confirmed: false,
       table_num: selectedTable,
-      reservationTime: `${selectedTimeslots[0].start_time} - ${
-        selectedTimeslots[selectedTimeslots.length - 1].end_time
+      reservationTime: `${sortedTimeslots[0].start_time} - ${
+        sortedTimeslots[sortedTimeslots.length - 1].end_time
       }`,
+      payment_method:paymentMethod,
     };
 
     fetch(`${API_BASE_URL}/reservations/`, {
@@ -332,7 +337,7 @@ const App = () => {
     setPrice(() => {
       return calculateTotalPrice(selectedTimeslots);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps    
   }, [selectedTimeslots]);
 
   const handleLoadWeekdays = async () => {
@@ -351,6 +356,7 @@ const App = () => {
         Выберите дату, стол и время бронирования
       </h2>
       <Calendar
+        locale="ru"
         onChange={handleDateChange}
         value={selectedDate}
         className="mx-auto m-3"
@@ -503,8 +509,9 @@ const App = () => {
                 value={paymentMethod}
                 onChange={handleInputChange}>
                 <option value="">Способ оплаты</option>
-                <option value="card">Банковской картой в зале</option>
-                <option value="cash">Наличными в зале</option>
+                <option value="Предоплата картой">Предоплата картой</option>
+                <option value="Банковской картой в зале">Банковской картой в зале</option>
+                <option value="Наличными в зале">Наличными в зале</option>
               </select>
             </div>
             <button
@@ -521,11 +528,7 @@ const App = () => {
           <Form.Check
             type="switch"
             id="monladder-switch"
-            label={
-              weekdays.Mon
-                ? 'Доступность бронирования на вечер понедельника отменена'
-                : 'Доступность бронирования на вечер понедельника включена'
-            }
+            label={`Доступность бронирования на вечер понедельника ${weekdays.Mon ? 'отменена' : 'включена'}`}
             checked={weekdays.Mon}
             onChange={() => handleToggleWeekday('Mon')}
           />
@@ -533,11 +536,7 @@ const App = () => {
           <Form.Check
             type="switch"
             id="wedladder-switch"
-            label={
-              weekdays.Wed
-                ? 'Доступность бронирования на вечер среды отменена'
-                : 'Доступность бронирования на вечер среды включена'
-            }
+            label={`Доступность бронирования на вечер среды ${weekdays.Wed ? 'отменена' : 'включена'} `}
             checked={weekdays.Wed}
             onChange={() => handleToggleWeekday('Wed')}
           />
@@ -545,11 +544,7 @@ const App = () => {
           <Form.Check
             type="switch"
             id="thuT-switch"
-            label={
-              weekdays.Thu
-                ? 'Доступность бронирования на вечер четверга отменена'
-                : 'Доступность бронирования на вечер четверга включена'
-            }
+            label={`Доступность бронирования на вечер четверга ${weekdays.Thu ? 'отменена' : 'включена'} `}
             checked={weekdays.Thu}
             onChange={() => handleToggleWeekday('Thu')}
           />
@@ -557,11 +552,7 @@ const App = () => {
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={
-              weekdays.Fri
-                ? 'Доступность бронирования на вечер пятницы отменена'
-                : 'Доступность бронирования на вечер пятницы включена'
-            }
+            label={`Доступность бронирования на вечер пятницы ${weekdays.Fri ? 'отменена' : 'включена'} `}
             checked={weekdays.Fri}
             onChange={() => handleToggleWeekday('Fri')}
           />
@@ -569,27 +560,25 @@ const App = () => {
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={
-              weekdays.Sat
-                ? 'Доступность бронирования на день субботы отменена'
-                : 'Доступность бронирования на день субботы включена'
-            }
+            label={`Доступность бронирования на утро субботы ${weekdays.Sat ? 'отменена' : 'включена'} `}
             checked={weekdays.Sat}
             onChange={() => handleToggleWeekday('Sat')}
           />
 
           <div className="row">
             {reservations.map((reservation) => (
-              <div className="col-md-3" key={reservation.id}>
-                <p>Бронирование на дату: {reservation.date}</p>
+              <div className="col-md-3 mt-3" key={reservation.id}>
+                
                 <ul className="list-group">
                   <li className="list-group-item">
+                  <p className="h6">Бронирование на: {reservation.date}</p>
                     <div>
                       <p>Номер стола: {reservation.table_num}</p>
                       <p>Имя: {reservation.name}</p>
                       <p>Телефон: {reservation.phone}</p>
                       <p>Комментарий: {reservation.comment}</p>
                       <p>Время: {reservation.reservationTime}</p>
+                      <p>Оплата: {reservation.payment_method}</p>
                       <p>Стоимость: {reservation.price} рублей</p>
                     </div>
                     <div>
