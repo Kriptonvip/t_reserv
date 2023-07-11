@@ -66,6 +66,7 @@ const App = () => {
     loadReservations();
     handleLoadWeekdays();
     setLoading(false);
+    handleDateChange(selectedDate);
   }, []);
 
   const handleDateChange = (date) => {
