@@ -1,18 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import Calendar from 'react-calendar';
-import { registerLocale } from 'date-fns';
-import ruLocale from 'date-fns/locale/ru';
+
 // eslint-disable-next-line no-unused-vars
 import styles from './styles.css';
 import { limitHours, tables, timeslots } from './data';
 import { Form, Button, Collapse } from 'react-bootstrap';
 import Modal from 'react-bootstrap/Modal';
 import ReservationTable from './components/ReservationTables';
+import { AuthContext } from './components/AuthProvider';
+
 
 const API_BASE_URL = '/api';
-
+const GMT3Date = (date) => new Date(date.getTime() + 3 * 60 * 60 * 1000);
 const App = () => {
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(GMT3Date(new Date()));
   const [selectedTable, setSelectedTable] = useState(null);
   const [selectedTimeslots, setSelectedTimeslots] = useState([]);
   const [name, setName] = useState('');
@@ -41,7 +42,8 @@ const App = () => {
   const [show, setShow] = useState(false);
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
-
+  const { loadingAuth, token } = useContext(AuthContext);
+  // console.log(token);
   const toggleOpen = (id) => {
     setOpen((prevOpen) => ({
       ...prevOpen,
@@ -55,7 +57,6 @@ const App = () => {
         `${API_BASE_URL}/reservations/all_reservations.php`
       );
       const reservationsData = await response.json();
-      console.log(reservationsData)
       setReservations(reservationsData);
     } catch (error) {
       console.log(error);
@@ -65,15 +66,14 @@ const App = () => {
   useEffect(() => {
     loadReservations();
     handleLoadWeekdays();
+    // handleDateChange(selectedDate)
     setLoading(false);
-    handleDateChange(selectedDate);
   }, []);
 
   const handleDateChange = (date) => {
-    const originalDate = new Date(date);
-    const GMT3Date = new Date(originalDate.getTime() + 3 * 60 * 60 * 1000);
-    setSelectedDate(GMT3Date);
-    setWeekDay(GMT3Date.toDateString().split(' ')[0]);
+    const dateGMT3 =  GMT3Date(date)
+    setSelectedDate(dateGMT3);
+    setWeekDay(dateGMT3.toDateString().split(' ')[0]);
     setSelectedTimeslots([]);
     loadReservations();
   };
@@ -89,6 +89,7 @@ const App = () => {
     // Проверяем, является ли массив диапазоном чисел
     return sortedArr.every((value, index) => value === min + index);
   };
+
 
   function addMissingObjects(arr) {
     const sortedArr = arr.map((obj) => obj.id).sort((a, b) => a - b); // Получаем массив id и сортируем его по возрастанию
@@ -109,6 +110,10 @@ const App = () => {
     // Создаем новый массив с добавленными недостающими объектами
     const newArray = arr.concat(
       missingIds.map((id) => {
+        // if(isSlotOccupied(timeslots[id-1])) {
+        //   return;
+        // }
+        console.log(isSlotOccupied(timeslots[id - 1]))
         // Создаем новый объект с недостающим id
         return timeslots[id - 1];
       })
@@ -151,6 +156,9 @@ const App = () => {
         if (isRange([...prevTimeslots, timeslot])) {
           // если слоты не идут по порядку, и есть пропуски то добавляем пропущеные слоты.
           return [...prevTimeslots, timeslot];
+        }
+        if(addMissingObjects([...prevTimeslots, timeslot]).some(item => isSlotOccupied(item))) {
+          return [timeslot]
         }
         return addMissingObjects([...prevTimeslots, timeslot]);
       });
@@ -385,7 +393,7 @@ const App = () => {
 
                   <Collapse in={open[table.id]}>
                     <div id="collapse-text">
-                      <ul className="list-group mt-2">
+                      <div className="list-group mt-2">
                         {timeslots
                           .filter((timeslot) => timeslot.table_id === table.id)
                           .filter((timeslot) => {
@@ -401,7 +409,7 @@ const App = () => {
                             const kidsTime =
                               !limitHours[dayOfWeek].kidsTime.includes(hour);
                             return (
-                              newDate > comparisonDate && limit && kidsTime
+                          (window.isUserLoggedIn || newDate > comparisonDate) && limit && kidsTime
                             );
                           })
                           .map((timeslot) => {
@@ -411,7 +419,7 @@ const App = () => {
                             return (
                               <li
                                 key={timeslot.id}
-                                className={`list-group-item cursor-pointer ${
+                                className={`hover-el pointer list-group-item cursor-pointer ${
                                   timeslot.saleRate
                                     ? 'list-group-item-primary'
                                     : ''
@@ -422,7 +430,9 @@ const App = () => {
                                     ? 'list-group-item-dark'
                                     : ''
                                 }`}
-                                onClick={() => handleSelectTimeslot(timeslot)}>
+                                onClick={() => handleSelectTimeslot(timeslot)}
+                                onDoubleClick={() => handleSelectTimeslot(timeslot)}
+                                >
                                 {timeslot.start_time.substring(
                                   0,
                                   timeslot.start_time.lastIndexOf(':')
@@ -442,7 +452,7 @@ const App = () => {
                               </li>
                             );
                           })}
-                      </ul>
+                      </div>
                     </div>
                   </Collapse>
                 </div>
@@ -523,7 +533,7 @@ const App = () => {
           </form>
         </Modal.Body>
       </Modal>
-      {!window.isUserLoggedIn ? null : (
+      {!loadingAuth ? (token  ? (
         <>
           <h2>Управление бронированиями</h2>
           <Form.Check
@@ -567,7 +577,13 @@ const App = () => {
           />
 
           <div className="row">
-            {reservations.map((reservation) => (
+            {reservations.filter((reservation) => {
+              const comparisonDate = new Date();
+              const newDate = new Date(reservation.date);
+              const hour = reservation.reservationTime.split(':')[0];
+              newDate.setHours(hour);
+              return newDate > comparisonDate;
+            }).map((reservation) => (
               <div className="col-md-3 mt-3" key={reservation.id}>
                 
                 <ul className="list-group">
@@ -602,7 +618,7 @@ const App = () => {
             ))}
           </div>
         </>
-      )}
+      ): null) : 'Loading...' }
     </div>
   );
 };

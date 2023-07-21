@@ -35,6 +35,12 @@ code {
     border: none;
     cursor: pointer;
   }
+  .pointer{
+    cursor: pointer;
+  }
+  .hover-el:hover{
+    filter: brightness(0.7);  
+  }
 
   @media (min-width: 768px) {
     .form-row {
@@ -44,5 +50,11 @@ code {
 
     .form-column {
       flex-basis: calc(33.33% - 10px);
+    }
+  }
+
+  @media (max-width: 768px) {
+    .hover-el:hover{
+      filter: none;
     }
   }
