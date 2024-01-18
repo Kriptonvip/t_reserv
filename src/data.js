@@ -7,11 +7,11 @@ export const tables = [
   ];
 
   export const limitHours = {
-    Mon: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Mon: {kidsTime: ['10', '11'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
     Tue: {kidsTime: ['10', '11', '15', '16'], limit: [], saleTimes:['12','13','14']},
-    Wed: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Wed: {kidsTime: ['10', '11'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
     Thu: {kidsTime: ['10', '11', '15', '16'], limit: ['19', '20', '21'], saleTimes:['12','13','14'] },
-    Fri: {kidsTime: ['10', '11', '12'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
+    Fri: {kidsTime: ['10', '11'], limit: ['19', '20', '21'], saleTimes:['13','14','15']},
     Sat: {kidsTime:[], limit: ['10', '11','12', '13'], saleTimes:[]},
     Sun: {kidsTime:[], limit: [], saleTimes:[]},
   }

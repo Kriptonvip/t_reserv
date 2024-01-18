@@ -332,13 +332,8 @@ const App = () => {
     let totalPrice = 0;
 
     timeSlots.forEach((timeSlot) => {
-      if (timeSlot.saleRate) {
-        totalPrice += 150;
-      } else {
          totalPrice += 200;
-      }
     });
-
     return totalPrice;
   };
 

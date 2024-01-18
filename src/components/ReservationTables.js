@@ -14,19 +14,14 @@ const ReservationTable = () => {
           </tr>
         </thead>
         <tbody>
-          <tr className='table-primary'>
-            <td>Понедельник - Пятница</td>
-            <td>13:00 - 16:00</td>
-            <td>300 рублей/час</td>
-          </tr>
           <tr>
             <td>Понедельник - Пятница</td>
-            <td>16:00 - 22:00</td>
+            <td>12:00 - 22:00</td>
             <td>400 рублей/час</td>
           </tr>
           <tr>
             <td>Суббота, Воскресенье</td>
-            <td>10:00 - 22:00</td>
+            <td>10:00 - 20:00</td>
             <td>400 рублей/час</td>
           </tr>
         </tbody>
