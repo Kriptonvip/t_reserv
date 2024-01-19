@@ -10,6 +10,7 @@
 ./
 all.code
 deploy.js
+/api_old
 
 # testing
 /coverage
