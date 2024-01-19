@@ -332,10 +332,14 @@ const App = () => {
     let totalPrice = 0;
 
     timeSlots.forEach((timeSlot) => {
+      if (timeSlot.saleRate) {
+        totalPrice += 150;
+      } else {
          totalPrice += 200;
+      }
     });
-    return totalPrice;
-  };
+    return totalPrice; // Здесь добавлена недостающая строка
+  }
 
   useEffect(() => {
     setPrice(() => {
@@ -390,8 +394,8 @@ const App = () => {
                     <div id="collapse-text">
                       <div className="list-group mt-2">
                         {timeslots
-                          .filter((timeslot) => timeslot.table_id === table.id)
-                          .filter((timeslot) => {
+                          .filter((timeslot) => timeslot.table_id === table.id) // фильтруем отображение слотов только для выбранного стола.
+                          .filter((timeslot) => { // фильтруем отображение слотов на сегодня, и по стальным фильтрам.
                             const comparisonDate = new Date();
                             const newDate = new Date(selectedDate);
                             const [hour, minutes] =
@@ -404,7 +408,7 @@ const App = () => {
                             const kidsTime =
                               !limitHours[dayOfWeek].kidsTime.includes(hour);
                             return (
-                          (window.isUserLoggedIn || newDate > comparisonDate) && limit && kidsTime
+                          (window.isUserLoggedIn || newDate > comparisonDate) && limit && kidsTime 
                             );
                           })
                           .map((timeslot) => {
@@ -420,23 +424,13 @@ const App = () => {
                                     : ''
                                 } text-center ${
                                   isTimeslotSelected(timeslot) ? 'active' : ''
-                                } ${
-                                  isSlotOccupied(timeslot)
-                                    ? 'list-group-item-dark'
-                                    : ''
-                                }`}
+                                } ${isSlotOccupied(timeslot) ? 'list-group-item-dark': ''}`}
                                 onClick={() => handleSelectTimeslot(timeslot)}
                                 onDoubleClick={() => handleSelectTimeslot(timeslot)}
                                 >
-                                {timeslot.start_time.substring(
-                                  0,
-                                  timeslot.start_time.lastIndexOf(':')
-                                )}{' '}
+                                {timeslot.start_time}{' '}
                                 -{' '}
-                                {timeslot.end_time.substring(
-                                  0,
-                                  timeslot.end_time.lastIndexOf(':')
-                                )}
+                                {timeslot.end_time}
                                 {isSlotOccupied(timeslot)
                                   ? ` бронь ${
                                       isSlotConfirmed(timeslot)
@@ -528,21 +522,64 @@ const App = () => {
           </form>
         </Modal.Body>
       </Modal>
-      {!loadingAuth ? (token  ? (
+       {!loadingAuth ? (token  ? (
+
         <>
           <h2>Управление бронированиями</h2>
+            {['checkbox'].map((type) => (
+        <div key={`inline-${type}`} className="mb-3">
+          <p>Доступность в понедельник</p>
+          <Form.Check
+            inline
+            label="c 10:00 до 12:00" 
+            name="group1"
+            type={type}
+            id={`inline-${type}-1`}
+            onChange={() => handleToggleWeekday('Mon')}
+          />
+          <Form.Check
+            inline
+            label="с 15:00 до 16:30"
+            name="group1"
+            type={type}
+            id={`inline-${type}-2`}
+          />
+          <Form.Check
+            inline
+            name="group1"
+            label="с 17:30 до 19:30"
+            type={type}
+            id={`inline-${type}-3`}
+          />
+           <Form.Check
+            inline
+            name="group1"
+            label="с 19:30 до 22:00"
+            type={type}
+            id={`inline-${type}-4`}
+          />
+        </div>
+      ))}
+          
           <Form.Check
             type="switch"
             id="monladder-switch"
-            label={`Доступность бронирования на вечер понедельника ${weekdays.Mon ? 'отменена' : 'включена'}`}
+            label={`Лесенка в понедельник с ${limitHours.Mon.limit[0]} до ${limitHours.Mon.limit.slice(-1)[0]}`}
             checked={weekdays.Mon}
             onChange={() => handleToggleWeekday('Mon')}
+          />
+           <Form.Check
+            type="switch"
+            id="Tueladder-switch"
+            label={`Лесенка во вторник с ${limitHours.Tue.limit[0]} до ${limitHours.Tue.limit.slice(-1)[0]}`}
+            checked={weekdays.Tue}
+            onChange={() => handleToggleWeekday('Tue')}
           />
 
           <Form.Check
             type="switch"
             id="wedladder-switch"
-            label={`Доступность бронирования на вечер среды ${weekdays.Wed ? 'отменена' : 'включена'} `}
+            label={`Лесенка в среду с ${limitHours.Wed.limit[0]} до ${limitHours.Wed.limit.slice(-1)[0]}`}
             checked={weekdays.Wed}
             onChange={() => handleToggleWeekday('Wed')}
           />
@@ -550,15 +587,15 @@ const App = () => {
           <Form.Check
             type="switch"
             id="thuT-switch"
-            label={`Доступность бронирования на вечер четверга ${weekdays.Thu ? 'отменена' : 'включена'} `}
+            label={`Четверг с ${limitHours.Thu.limit[0]} до ${limitHours.Thu.limit.slice(-1)[0]}`}
             checked={weekdays.Thu}
             onChange={() => handleToggleWeekday('Thu')}
           />
 
           <Form.Check
             type="switch"
-            id="satT-switch"
-            label={`Доступность бронирования на вечер пятницы ${weekdays.Fri ? 'отменена' : 'включена'} `}
+            id="friT-switch"
+            label={`Лесенка в пятницу с ${limitHours.Fri.limit[0]} до ${limitHours.Fri.limit.slice(-1)[0]}`}
             checked={weekdays.Fri}
             onChange={() => handleToggleWeekday('Fri')}
           />
@@ -566,9 +603,16 @@ const App = () => {
           <Form.Check
             type="switch"
             id="satT-switch"
-            label={`Доступность бронирования на утро субботы ${weekdays.Sat ? 'отменена' : 'включена'} `}
+            label={`Турнир утро субботы с ${limitHours.Sat.limit[0]} до ${limitHours.Sat.limit.slice(-1)[0]}`}
             checked={weekdays.Sat}
             onChange={() => handleToggleWeekday('Sat')}
+          />
+                    <Form.Check
+            type="switch"
+            id="sunT-switch"
+            label={`Турнир утро воскресенья с ${limitHours.Sun.limit[0]} до ${limitHours.Sun.limit.slice(-1)[0]}`}
+            checked={weekdays.Sun}
+            onChange={() => handleToggleWeekday('Sun')}
           />
 
           <div className="row">

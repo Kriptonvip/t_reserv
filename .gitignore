@@ -9,6 +9,7 @@
 .pnp.js
 ./
 all.code
+deploy.js
 
 # testing
 /coverage
