@@ -3,18 +3,19 @@ import Calendar from 'react-calendar';
 
 // eslint-disable-next-line no-unused-vars
 import styles from './styles.css';
-import { limitHours, tables, timeslots } from './data';
+import { limitHours, tables, timeslotsData, limitArrs } from './data';
 import { Form, Button, Collapse } from 'react-bootstrap';
 import Modal from 'react-bootstrap/Modal';
 import ReservationTable from './components/ReservationTables';
+import BronControl from './components/BronControl';
 import { AuthContext } from './components/AuthProvider';
-
 
 const API_BASE_URL = '/api';
 const GMT3Date = (date) => new Date(date.getTime() + 3 * 60 * 60 * 1000);
 const App = () => {
   const [selectedDate, setSelectedDate] = useState(GMT3Date(new Date()));
   const [selectedTable, setSelectedTable] = useState(null);
+  const [timeslots, setTimeslots] = useState(timeslotsData);
   const [selectedTimeslots, setSelectedTimeslots] = useState([]);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -44,6 +45,70 @@ const App = () => {
   const handleShow = () => setShow(true);
   const { loadingAuth, token } = useContext(AuthContext);
   // console.log(token);
+
+  const loadTimeslots = async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/timeslots/index.php`);
+      const timeslotsData = await response.json();
+      setTimeslots(timeslotsData);
+      console.log('timeslots fetch', timeslots);
+    } catch (error) {
+      console.error('Ошибка при загрузке данных о слотах:', error);
+    }
+  };
+  const saveTimeslotsToDatabase = async (timeslotsData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/timeslots/index.php`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(timeslotsData),
+      });
+
+      if (response.ok) {
+        console.log('Данные о слотах успешно сохранены');
+        console.log('timeslots POST', timeslots);
+        loadTimeslots();
+      } else {
+        console.error('Произошла ошибка при сохранении данных о слотах');
+      }
+    } catch (error) {
+      console.error('Ошибка при отправке данных о слотах на сервер:', error);
+    }
+  };
+  // Вызываем функцию загрузки данных о слотах при инициализации компонента
+  const handleSaveTimeslots = (idArr, day) => {
+    // Подготавливаем данные о слотах для сохранения (можете использовать timeslots или другую структуру данных)
+    const timeslotsData = timeslots.slice();
+    // timeslotsData.forEach(timeSlot => timeSlot.notAvailable = '');
+    idArr.forEach((id) => {
+      console.log(
+        'timeslotsData[id-1].notAvailable.includes(day)',
+        timeslotsData[id - 1].notAvailable.includes(day)
+      );
+
+      if (timeslotsData[id - 1].notAvailable.includes(day)) {
+        console.log('До replace', timeslotsData[id - 1].notAvailable);
+        timeslotsData[id - 1].notAvailable = timeslotsData[
+          id - 1
+        ].notAvailable.replace(day, '');
+        console.log('поcле replace', timeslotsData[id - 1].notAvailable);
+      } else {
+        timeslotsData[id - 1].notAvailable += day;
+      }
+    });
+    console.log('handleSaveTimeslots', timeslotsData);
+    // Вызываем функцию для отправки данных о слотах на сервер
+    saveTimeslotsToDatabase(timeslotsData);
+    // ваша структура данных о слотах
+  };
+  function areAllNotAvailable(ids, day) {
+    return ids.every((id) =>
+      timeslots.find((item) => item.id === id)?.notAvailable.includes(day)
+    );
+  }
+
   const toggleOpen = (id) => {
     setOpen((prevOpen) => ({
       ...prevOpen,
@@ -64,6 +129,7 @@ const App = () => {
   };
 
   useEffect(() => {
+    loadTimeslots();
     loadReservations();
     handleLoadWeekdays();
     // handleDateChange(selectedDate)
@@ -71,7 +137,7 @@ const App = () => {
   }, []);
 
   const handleDateChange = (date) => {
-    const dateGMT3 =  GMT3Date(date)
+    const dateGMT3 = GMT3Date(date);
     setSelectedDate(dateGMT3);
     setWeekDay(dateGMT3.toDateString().split(' ')[0]);
     setSelectedTimeslots([]);
@@ -89,7 +155,6 @@ const App = () => {
     // Проверяем, является ли массив диапазоном чисел
     return sortedArr.every((value, index) => value === min + index);
   };
-
 
   function addMissingObjects(arr) {
     const sortedArr = arr.map((obj) => obj.id).sort((a, b) => a - b); // Получаем массив id и сортируем его по возрастанию
@@ -113,7 +178,7 @@ const App = () => {
         // if(isSlotOccupied(timeslots[id-1])) {
         //   return;
         // }
-        console.log(isSlotOccupied(timeslots[id - 1]))
+        console.log(isSlotOccupied(timeslots[id - 1]));
         // Создаем новый объект с недостающим id
         return timeslots[id - 1];
       })
@@ -157,8 +222,12 @@ const App = () => {
           // если слоты не идут по порядку, и есть пропуски то добавляем пропущеные слоты.
           return [...prevTimeslots, timeslot];
         }
-        if(addMissingObjects([...prevTimeslots, timeslot]).some(item => isSlotOccupied(item))) {
-          return [timeslot]
+        if (
+          addMissingObjects([...prevTimeslots, timeslot]).some((item) =>
+            isSlotOccupied(item)
+          )
+        ) {
+          return [timeslot];
         }
         return addMissingObjects([...prevTimeslots, timeslot]);
       });
@@ -186,7 +255,7 @@ const App = () => {
       reservationTime: `${sortedTimeslots[0].start_time} - ${
         sortedTimeslots[sortedTimeslots.length - 1].end_time
       }`,
-      payment_method:paymentMethod,
+      payment_method: paymentMethod,
     };
 
     fetch(`${API_BASE_URL}/reservations/`, {
@@ -335,17 +404,17 @@ const App = () => {
       if (timeSlot.saleRate) {
         totalPrice += 150;
       } else {
-         totalPrice += 200;
+        totalPrice += 200;
       }
     });
     return totalPrice; // Здесь добавлена недостающая строка
-  }
+  };
 
   useEffect(() => {
     setPrice(() => {
       return calculateTotalPrice(selectedTimeslots);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTimeslots]);
 
   const handleLoadWeekdays = async () => {
@@ -395,20 +464,19 @@ const App = () => {
                       <div className="list-group mt-2">
                         {timeslots
                           .filter((timeslot) => timeslot.table_id === table.id) // фильтруем отображение слотов только для выбранного стола.
-                          .filter((timeslot) => { // фильтруем отображение слотов на сегодня, и по стальным фильтрам.
+                          .filter((timeslot) => {
+                            // фильтруем отображение слотов на сегодня, и по стальным фильтрам.
                             const comparisonDate = new Date();
                             const newDate = new Date(selectedDate);
                             const [hour, minutes] =
                               timeslot.start_time.split(':');
                             newDate.setHours(hour, minutes);
-                            const limit = !(
-                              weekdays[dayOfWeek] &&
-                              limitHours[dayOfWeek].limit.includes(hour)
-                            );
-                            const kidsTime =
-                              !limitHours[dayOfWeek].kidsTime.includes(hour);
+                            const notAvailable =
+                              timeslot.notAvailable.includes(dayOfWeek);
                             return (
-                          (window.isUserLoggedIn || newDate > comparisonDate) && limit && kidsTime 
+                              (window.isUserLoggedIn ||
+                                newDate > comparisonDate) &&
+                              !notAvailable
                             );
                           })
                           .map((timeslot) => {
@@ -424,13 +492,16 @@ const App = () => {
                                     : ''
                                 } text-center ${
                                   isTimeslotSelected(timeslot) ? 'active' : ''
-                                } ${isSlotOccupied(timeslot) ? 'list-group-item-dark': ''}`}
+                                } ${
+                                  isSlotOccupied(timeslot)
+                                    ? 'list-group-item-dark'
+                                    : ''
+                                }`}
                                 onClick={() => handleSelectTimeslot(timeslot)}
-                                onDoubleClick={() => handleSelectTimeslot(timeslot)}
-                                >
-                                {timeslot.start_time}{' '}
-                                -{' '}
-                                {timeslot.end_time}
+                                onDoubleClick={() =>
+                                  handleSelectTimeslot(timeslot)
+                                }>
+                                {timeslot.start_time} - {timeslot.end_time}
                                 {isSlotOccupied(timeslot)
                                   ? ` бронь ${
                                       isSlotConfirmed(timeslot)
@@ -510,7 +581,9 @@ const App = () => {
                 onChange={handleInputChange}>
                 <option value="">Способ оплаты</option>
                 <option value="Предоплата картой">Предоплата картой</option>
-                <option value="Банковской картой в зале">Банковской картой в зале</option>
+                <option value="Банковской картой в зале">
+                  Банковской картой в зале
+                </option>
                 <option value="Наличными в зале">Наличными в зале</option>
               </select>
             </div>
@@ -522,142 +595,67 @@ const App = () => {
           </form>
         </Modal.Body>
       </Modal>
-       {!loadingAuth ? (token  ? (
-
-        <>
-          <h2>Управление бронированиями</h2>
-            {['checkbox'].map((type) => (
-        <div key={`inline-${type}`} className="mb-3">
-          <p>Доступность в понедельник</p>
-          <Form.Check
-            inline
-            label="c 10:00 до 12:00" 
-            name="group1"
-            type={type}
-            id={`inline-${type}-1`}
-            onChange={() => handleToggleWeekday('Mon')}
-          />
-          <Form.Check
-            inline
-            label="с 15:00 до 16:30"
-            name="group1"
-            type={type}
-            id={`inline-${type}-2`}
-          />
-          <Form.Check
-            inline
-            name="group1"
-            label="с 17:30 до 19:30"
-            type={type}
-            id={`inline-${type}-3`}
-          />
-           <Form.Check
-            inline
-            name="group1"
-            label="с 19:30 до 22:00"
-            type={type}
-            id={`inline-${type}-4`}
-          />
-        </div>
-      ))}
-          
-          <Form.Check
-            type="switch"
-            id="monladder-switch"
-            label={`Лесенка в понедельник с ${limitHours.Mon.limit[0]} до ${limitHours.Mon.limit.slice(-1)[0]}`}
-            checked={weekdays.Mon}
-            onChange={() => handleToggleWeekday('Mon')}
-          />
-           <Form.Check
-            type="switch"
-            id="Tueladder-switch"
-            label={`Лесенка во вторник с ${limitHours.Tue.limit[0]} до ${limitHours.Tue.limit.slice(-1)[0]}`}
-            checked={weekdays.Tue}
-            onChange={() => handleToggleWeekday('Tue')}
-          />
-
-          <Form.Check
-            type="switch"
-            id="wedladder-switch"
-            label={`Лесенка в среду с ${limitHours.Wed.limit[0]} до ${limitHours.Wed.limit.slice(-1)[0]}`}
-            checked={weekdays.Wed}
-            onChange={() => handleToggleWeekday('Wed')}
-          />
-
-          <Form.Check
-            type="switch"
-            id="thuT-switch"
-            label={`Четверг с ${limitHours.Thu.limit[0]} до ${limitHours.Thu.limit.slice(-1)[0]}`}
-            checked={weekdays.Thu}
-            onChange={() => handleToggleWeekday('Thu')}
-          />
-
-          <Form.Check
-            type="switch"
-            id="friT-switch"
-            label={`Лесенка в пятницу с ${limitHours.Fri.limit[0]} до ${limitHours.Fri.limit.slice(-1)[0]}`}
-            checked={weekdays.Fri}
-            onChange={() => handleToggleWeekday('Fri')}
-          />
-
-          <Form.Check
-            type="switch"
-            id="satT-switch"
-            label={`Турнир утро субботы с ${limitHours.Sat.limit[0]} до ${limitHours.Sat.limit.slice(-1)[0]}`}
-            checked={weekdays.Sat}
-            onChange={() => handleToggleWeekday('Sat')}
-          />
-                    <Form.Check
-            type="switch"
-            id="sunT-switch"
-            label={`Турнир утро воскресенья с ${limitHours.Sun.limit[0]} до ${limitHours.Sun.limit.slice(-1)[0]}`}
-            checked={weekdays.Sun}
-            onChange={() => handleToggleWeekday('Sun')}
-          />
-
-          <div className="row">
-            {reservations.filter((reservation) => {
-              const comparisonDate = new Date();
-              const newDate = new Date(reservation.date);
-              const hour = reservation.reservationTime.split(':')[0];
-              newDate.setHours(hour);
-              return newDate > comparisonDate;
-            }).map((reservation) => (
-              <div className="col-md-3 mt-3" key={reservation.id}>
-                
-                <ul className="list-group">
-                  <li className="list-group-item">
-                  <p className="h6">Бронирование на: {reservation.date}</p>
-                    <div>
-                      <p>Номер стола: {reservation.table_num}</p>
-                      <p>Имя: {reservation.name}</p>
-                      <p>Телефон: {reservation.phone}</p>
-                      <p>Комментарий: {reservation.comment}</p>
-                      <p>Время: {reservation.reservationTime}</p>
-                      <p>Оплата: {reservation.payment_method}</p>
-                      <p>Стоимость: {reservation.price} рублей</p>
-                    </div>
-                    <div>
-                      <button
-                        className="btn btn-danger m-2"
-                        onClick={() => deleteReservations([reservation.id])}>
-                        Удалить
-                      </button>
-                      {reservation.confirmed === '1' ? null : (
-                        <button
-                          className="btn btn-success"
-                          onClick={() => confirmReservations([reservation.id])}>
-                          Подтвердить
-                        </button>
-                      )}
-                    </div>
-                  </li>
-                </ul>
-              </div>
-            ))}
-          </div>
-        </>
-      ): null) : 'Loading...' }
+      {!loadingAuth ? (
+        token ? (
+          <>
+            <h2>Управление бронированиями</h2>
+            <BronControl
+            areAllNotAvailable={areAllNotAvailable}
+            handleSaveTimeslots={handleSaveTimeslots}
+            />
+            <div className="row">
+              {reservations
+                .filter((reservation) => {
+                  const comparisonDate = new Date();
+                  const newDate = new Date(reservation.date);
+                  const hour = reservation.reservationTime.split(':')[0];
+                  newDate.setHours(hour);
+                  return newDate > comparisonDate;
+                })
+                .map((reservation) => (
+                  <div className="col-md-3 mt-3" key={reservation.id}>
+                    <ul className="list-group">
+                      <li className="list-group-item">
+                        <p className="h6">
+                          Бронирование на: {reservation.date}
+                        </p>
+                        <div>
+                          <p>Номер стола: {reservation.table_num}</p>
+                          <p>Имя: {reservation.name}</p>
+                          <p>Телефон: {reservation.phone}</p>
+                          <p>Комментарий: {reservation.comment}</p>
+                          <p>Время: {reservation.reservationTime}</p>
+                          <p>Оплата: {reservation.payment_method}</p>
+                          <p>Стоимость: {reservation.price} рублей</p>
+                        </div>
+                        <div>
+                          <button
+                            className="btn btn-danger m-2"
+                            onClick={() =>
+                              deleteReservations([reservation.id])
+                            }>
+                            Удалить
+                          </button>
+                          {reservation.confirmed === '1' ? null : (
+                            <button
+                              className="btn btn-success"
+                              onClick={() =>
+                                confirmReservations([reservation.id])
+                              }>
+                              Подтвердить
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                ))}
+            </div>
+          </>
+        ) : null
+      ) : (
+        'Loading...'
+      )}
     </div>
   );
 };
