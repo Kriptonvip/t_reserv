@@ -57,6 +57,7 @@ const App = () => {
     }
   };
   const saveTimeslotsToDatabase = async (timeslotsData) => {
+    console.log( 'при отправке', timeslotsData)
     try {
       const response = await fetch(`${API_BASE_URL}/timeslots/index.php`, {
         method: 'POST',
@@ -83,22 +84,12 @@ const App = () => {
     const timeslotsData = timeslots.slice();
     // timeslotsData.forEach(timeSlot => timeSlot.notAvailable = '');
     idArr.forEach((id) => {
-      console.log(
-        'timeslotsData[id-1].notAvailable.includes(day)',
-        timeslotsData[id - 1].notAvailable.includes(day)
-      );
-
       if (timeslotsData[id - 1].notAvailable.includes(day)) {
-        console.log('До replace', timeslotsData[id - 1].notAvailable);
-        timeslotsData[id - 1].notAvailable = timeslotsData[
-          id - 1
-        ].notAvailable.replace(day, '');
-        console.log('поcле replace', timeslotsData[id - 1].notAvailable);
+        timeslotsData[id - 1].notAvailable = timeslotsData[id - 1].notAvailable.replace(day, '');
       } else {
         timeslotsData[id - 1].notAvailable += day;
       }
     });
-    console.log('handleSaveTimeslots', timeslotsData);
     // Вызываем функцию для отправки данных о слотах на сервер
     saveTimeslotsToDatabase(timeslotsData);
     // ваша структура данных о слотах
@@ -234,9 +225,36 @@ const App = () => {
     }
   };
 
-  const handleSubmit = (event) => {
+  const isReservationExists = (reservation, reservations) => {
+    // Преобразуем дату в строку в формате "YYYY-MM-DD"
+    const reservationDate = reservation.date;
+  
+    // Проверяем каждый резерв в массиве reservations
+    for (const existingReservation of reservations) {
+      // Проверяем совпадение дат
+      if (existingReservation.date === reservationDate) {
+        // Проверяем совпадение id слотов
+        for (const timeslotId of reservation.timeslot_ids) {
+          if (existingReservation.timeslots.find((timeslot) => {
+              return timeslot.id === timeslotId.toString()
+            } )) {
+            // Если найден хотя бы один резерв с совпадающим id слота и датой, возвращаем true
+            return true;
+          }
+        }
+      }
+    }
+    // Если не найдено совпадений, возвращаем false
+    return false;
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
     handleClose();
+    const response = await fetch(`${API_BASE_URL}/reservations/all_reservations.php`);
+    const reservationsData = await response.json(); //берем актуальные данные о резервах перед созданием нового бронирования.
+    
+    console.log('loadReservations end', reservationsData );
     if (!selectedTimeslots.length || !selectedDate || !selectedTable) {
       alert('Пожалуйста, выберите стол, дату и время бронирования');
       return;
@@ -257,7 +275,19 @@ const App = () => {
       }`,
       payment_method: paymentMethod,
     };
-
+    if(isReservationExists(reservation, reservationsData)) { //проверяем не сделал ли кто нибудь бронь, пока делалась эта бронь
+     
+      // обнуляем выбранные таймслоты и актуализируем весь список.
+      setSelectedTable(null);
+          setSelectedTimeslots([]);
+          setName('');
+          setPhone('');
+          setComment('');
+          setPaymentMethod('');
+          alert('Внимание!!!\nПроизошла ошибка при создании бронирования\nваша бронь не принята, кто-то уже забронировал это время,\nпока вы делали бронь.');
+          loadReservations();
+      return;
+    }
     fetch(`${API_BASE_URL}/reservations/`, {
       method: 'POST',
       headers: {
@@ -302,7 +332,9 @@ const App = () => {
   };
 
   const confirmReservations = (reservationIds) => {
+    console.log('reservationIds', reservationIds)
     reservationIds.forEach((reservationId) => {
+      console.log('reservationId', reservationId)
       fetch(
         `${API_BASE_URL}/reservations/confirm_reservation.php?id=${reservationId}`,
         {
@@ -323,12 +355,13 @@ const App = () => {
   const isTimeslotSelected = (timeslot) =>
     selectedTimeslots.some((selectedSlot) => selectedSlot.id === timeslot.id);
 
-  const isSlotConfirmed = (timeslot) =>
+    const isSlotConfirmed = (timeslot) =>
     reservations.some((reservation) => {
       const hasInReserv = reservation.timeslots.some(
         (slot) => slot.id === `${timeslot.id}`
       );
-      return hasInReserv && reservation.confirmed === '1';
+      const isDateMatch = reservation.date === selectedDate.toISOString().split('T')[0];
+      return hasInReserv && reservation.confirmed === '1' && isDateMatch;
     });
 
   const handleInputChange = (event) => {
